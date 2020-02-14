@@ -26,17 +26,6 @@ dependencies:
 library:
   source-dirs: src
 
-executables:
-  smt2-parser-exe:
-    main:                Main.hs
-    source-dirs:         app
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    dependencies:
-    - smt2-parser
-
 tests:
   smt2-parser-test:
     main:                Spec.hs
