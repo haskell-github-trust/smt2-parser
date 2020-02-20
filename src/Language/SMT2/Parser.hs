@@ -7,18 +7,18 @@
 -}
 module Language.SMT2.Parser where
 
-import           Data.Char                          (toLower)
-import           Text.Parsec                        (ParseError, eof, parse)
-import           Text.Parsec.String                 (Parser)
-import           Text.ParserCombinators.Parsec.Char (char, digit, hexDigit,
-                                                     oneOf, satisfy, string)
-import           Text.ParserCombinators.Parsec.Prim (GenParser, many, (<|>))
+import           Data.Char              (toLower)
+import           Text.Parsec            (ParseError, Parsec, eof, parse, try)
+import           Text.Parsec.Char
+import           Text.Parsec.Combinator (between, many1, sepBy, skipMany1)
+import           Text.Parsec.Prim       (many, (<?>), (<|>))
+import           Text.Parsec.String     (Parser)
 
-parseFromString :: Parser a -> String -> Either ParseError a
-parseFromString p = parse p ""
+parseString :: Parser a -> String -> Either ParseError a
+parseString p = parse p ""
 
-parseFromStringEof :: Parser a -> String -> Either ParseError a
-parseFromStringEof p = parse (p <* eof) ""
+parseStringEof :: Parser a -> String -> Either ParseError a
+parseStringEof p = parse (p <* eof) ""
 
 -- | Lexicons (Sec. 3.1)
 --
@@ -33,28 +33,110 @@ type Decimal       = String
 type Hexadecimal   = String
 type Binary        = String
 type StringLiteral = String
+type ReservedWord  = String
+type Symbol        = String
+type Keyword       = String
 
-nonZeroDigit :: GenParser Char st Char
+type GenStrParser st = Parsec String st
+
+nonZeroDigit :: GenStrParser st Char
 nonZeroDigit = oneOf "123456789"
 
-numeral :: GenParser Char st Numeral
+numeral :: GenStrParser st Numeral
 numeral =  string "0"
-       <|> do head <- nonZeroDigit
-              tail <- many digit
-              return (head:tail)
+       <|> do c <- nonZeroDigit
+              cs <- many digit
+              return (c:cs)
 
-decimal :: GenParser Char st Decimal
+decimal :: GenStrParser st Decimal
 decimal = do whole <- numeral
              char '.'
              zeros <- many (char '0')
              restFractional <- numeral
              return (whole <> "." <> zeros <> restFractional)
 
-hexadecimal :: GenParser Char st Hexadecimal
-hexadecimal = string "#x" *> fmap (fmap toLower) (many hexDigit)
+hexadecimal :: GenStrParser st Hexadecimal
+hexadecimal = string "#x" >> fmap (fmap toLower) (many1 hexDigit)
 
+binary :: GenStrParser st Binary
+binary = string "#b" >> many1 (char '0' <|> char '1')
+
+
+stringLiteral :: GenStrParser st StringLiteral
+stringLiteral = do char '"'
+                   str <- many (nonEscaped <|> escaped)
+                   char '"'
+                   return str
+  where
+    nonEscaped = noneOf "\\\""
+    escaped = char '\\' >> (char '\\' <|> char '"')
+
+reservedWord :: GenStrParser st ReservedWord
+reservedWord =  string "par"
+            <|> string "NUMERAL"
+            <|> string "DECIMAL"
+            <|> string "STRING"
+            <|> string "_"
+            <|> string "!"
+            <|> string "as"
+            <|> string "let"
+            <|> string "forall"
+            <|> string "exists"
+            <?> "reserved words"
+
+-- | characters allowed in a name
+nameChar :: GenStrParser st Char
+nameChar = oneOf  "~!@$%^&*_-+=<>.?/"
+
+-- | a symbol should not be a reservedWord
+-- so try reservedWord first
+simpleSymbol :: GenStrParser st Symbol
+simpleSymbol = do c <- noneOf "0123456789"
+                  cs <- many (alphaNum <|> nameChar)
+                  return (c:cs)
+
+quotedSymbol :: GenStrParser st Symbol
+quotedSymbol = between (char '|') (char '|') $ many (noneOf "\\|")
+
+-- |  enclosing a simple symbol in vertical bars does not produce a
+-- new symbol, e.g. abc and |abc| are the *same* symbol
+-- this is guaranteed by removing the bars
+symbol :: GenStrParser st Symbol
+symbol = quotedSymbol <|> simpleSymbol
+
+keyword :: GenStrParser st Keyword
+keyword = do char ':'
+             many1 (alphaNum <|> nameChar)
 
 -- | S-expressions (Sec. 3.2)
 
+data SpecConstant = SCNumeral Numeral
+                  | SCDecimal Decimal
+                  | SCHexadecimal Hexadecimal
+                  | SCBinary Binary
+                  | SCString StringLiteral
 
+data SExpr = SEConstant SpecConstant
+           | SESymbol Symbol
+           | SEKeyword Keyword
+           | SEList SList
 
+type SList = [SExpr]
+
+spaces1 :: GenStrParser st ()
+spaces1 = skipMany1 space
+
+slist :: GenStrParser st SList
+slist = between (char '(') (char ')') $ sepBy sexpr spaces1
+
+specConstant :: GenStrParser st SpecConstant
+specConstant =  SCNumeral <$> numeral
+            <|> SCDecimal <$> decimal
+            <|> SCHexadecimal <$> hexadecimal
+            <|> SCBinary <$> binary
+            <|> SCString <$> stringLiteral
+            <?> "spec constants"
+
+sexpr :: GenStrParser st SExpr
+sexpr =  SEConstant <$> specConstant
+     <|> SESymbol <$> symbol
