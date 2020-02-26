@@ -36,3 +36,4 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - smt2-parser
+    - HUnit >= 1.0 && < 2.0
