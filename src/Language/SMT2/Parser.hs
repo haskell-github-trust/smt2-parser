@@ -40,12 +40,9 @@ type Keyword       = String
 
 type GenStrParser st = Parsec String st
 
-nonZeroDigit :: GenStrParser st Char
-nonZeroDigit = oneOf "123456789"
-
 numeral :: GenStrParser st Numeral
 numeral =  string "0"
-       <|> do c <- nonZeroDigit
+       <|> do c <- oneOf "123456789"
               cs <- many digit
               return (c:cs)
 
@@ -53,7 +50,7 @@ decimal :: GenStrParser st Decimal
 decimal = do whole <- numeral
              char '.'
              zeros <- many (char '0')
-             restFractional <- numeral
+             restFractional <- option "" numeral
              return (whole <> "." <> zeros <> restFractional)
 
 hexadecimal :: GenStrParser st Hexadecimal

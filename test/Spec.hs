@@ -19,9 +19,27 @@ pf p s = TestCase $ case parseStringEof p s of
            Left _  -> pure ()
            Right _ -> assertFailure $ "should fail for " <> s
 
-tokenTest = TestList [ pe numeral "0" ("0" :: Numeral) ]
+-- | Sec 3.1
+lexiconTest = TestList [ pN "0" ("0" :: Numeral)
+                       , pN "42" ("42" :: Numeral)
+                       , pf numeral "02"   -- ^ should not start with 0
+                       , pf numeral "221b" -- ^ should not contain letters
+                       , pD "0.0" ("0.0" :: Decimal)
+                       , pD "0.1" ("0.1" :: Decimal)
+                       , pD "13.37" ("13.37" :: Decimal)
+                       , pD "13.0370" ("13.0370" :: Decimal)
+                       , pf decimal ".5"
+                       ]
+  where
+    pN = pe numeral
+    pD = pe decimal
+    pH = pe hexadecimal
+    pL = pe stringLiteral
+    pR = pe reservedWord
+    pS = pe symbol
+    pK = pe keyword
 
-specTest = TestList [ tokenTest ]
+specTest = TestList [ lexiconTest ]
 
 hornTest = TestCase $ pure ()
 
