@@ -48,6 +48,13 @@ lexiconTest = TestList [ pN "0" ("0" :: Numeral)
                        , pL "\"one\\n two\"" ("one\\n two" :: StringLiteral) -- ^ non-escape
                        , pL "\"She said: \\\"Hello!\\\"\"" ("She said: \"Hello!\"" :: StringLiteral)
                        , pL "\"Here is a backslash: \\\\\"" ("Here is a backslash: \\" :: StringLiteral)
+                       , pR "par" ("par" :: ReservedWord)
+                       , pR "NUMERAL" ("NUMERAL" :: ReservedWord)
+                       , pR "_" ("_" :: ReservedWord)
+                       , pR "!" ("!" :: ReservedWord)
+                       , pR "as" ("as" :: ReservedWord)
+                       , pR "set-logic" ("set-logic" :: ReservedWord)
+                       , pf reservedWord "asleep" -- ^ prefix
                        ]
   where
     pN = pe numeral

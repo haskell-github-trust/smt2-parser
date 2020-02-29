@@ -70,7 +70,7 @@ stringLiteral = do char '"'
 
 reservedWords :: [String]
 reservedWords = [ -- General
-                  "!", "," , "as", "DECIMAL", "exists", "forall", "let", "NUMERAL", "par", "STRING",
+                  "!", "_" , "as", "DECIMAL", "exists", "forall", "let", "NUMERAL", "par", "STRING",
                   -- Command names
                    "assert", "check-sat", "declare-sort", "declare-fun", "define-sort",
                    "define-fun", "exit", "get-assertions", "get-assignment", "get-info", "get-option",
