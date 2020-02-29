@@ -66,7 +66,7 @@ stringLiteral = do char '"'
                    return str
   where
     nonEscaped = noneOf "\\\""
-    escaped = char '\\' >> (char '\\' <|> char '"')
+    escaped = char '\\' >> (char '\\' <|> char '"' <|> pure '\\') -- try to escape, if can't, preserve the backslash
 
 reservedWords :: [String]
 reservedWords = [ -- General
