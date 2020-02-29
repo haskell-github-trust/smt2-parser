@@ -81,7 +81,11 @@ reservedWords = [ -- General
 -- | accept all reserved words,
 -- the exact content should be checked later in the parsing procedure
 reservedWord :: GenStrParser st ReservedWord
-reservedWord = choice (try . string <$> reservedWords)
+reservedWord = choice (parseWord <$> reservedWords)
+  where
+    parseWord :: String -> GenStrParser st ReservedWord
+    parseWord w = try (string w) <* notFollowedBy anyChar
+
 
 -- | characters allowed in a name
 nameChar :: GenStrParser st Char
@@ -100,9 +104,7 @@ quotedSymbol = between (char '|') (char '|') $ many (noneOf "\\|")
 -- new symbol, e.g. @abc@ and @|abc|@ are the /same/ symbol
 -- this is guaranteed by removing the bars
 symbol :: GenStrParser st Symbol
-symbol =  quotedSymbol
-      <|> simpleSymbol
-      <?> "symbol"
+symbol =  notFollowedBy (try reservedWord) >> (quotedSymbol <|> simpleSymbol <?> "symbol")
 
 keyword :: GenStrParser st Keyword
 keyword = do char ':'

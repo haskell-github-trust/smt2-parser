@@ -55,6 +55,12 @@ lexiconTest = TestList [ pN "0" ("0" :: Numeral)
                        , pR "as" ("as" :: ReservedWord)
                        , pR "set-logic" ("set-logic" :: ReservedWord)
                        , pf reservedWord "asleep" -- ^ prefix
+                       , pf symbol "par" -- ^ symbol should not be a reserved word
+                       , pf symbol "NUMERAL"
+                       , pf symbol "_"
+                       , pf symbol "!"
+                       , pf symbol "as"
+                       , pS "asleep" ("asleep" :: Symbol) -- ^ prefix
                        ]
   where
     pN = pe numeral
