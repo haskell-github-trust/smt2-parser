@@ -215,3 +215,80 @@ sortParameter = betweenBrackets $ do
 sort :: GenStrParser st Sort
 sort =  SortSymbol <$> try identifier
     <|> sortParameter
+
+
+-- * Terms and Formulas (Sec 3.6)
+
+data QualIdentifier = Unqualified Identifier
+                    | Qualified Identifier Sort
+
+qualIdentifier :: GenStrParser st QualIdentifier
+qualIdentifier =  Unqualified <$> try identifier
+              <|> betweenBrackets annotation
+              <?> "qual identifier"
+  where
+    annotation :: GenStrParser st QualIdentifier
+    annotation = do
+      string "as"
+      id <- identifier
+      spaces1
+      Qualified id <$> sort
+
+data VarBinding = VarBinding Symbol Term
+
+varBinding :: GenStrParser st VarBinding
+varBinding = betweenBrackets $ VarBinding <$> symbol <* spaces1 <*> term
+
+data SortedVar = SortedVar Symbol Sort
+
+sortedVar :: GenStrParser st SortedVar
+sortedVar = betweenBrackets $ SortedVar <$> symbol <* spaces1 <*> sort
+
+data Term = TermSpecConstant SpecConstant
+          | TermQualIdentifier QualIdentifier
+          | TermApplication QualIdentifier (NE.NonEmpty Term)
+          | TermLet (NE.NonEmpty VarBinding) Term
+          | TermForall (NE.NonEmpty SortedVar) Term
+          | TermExists (NE.NonEmpty SortedVar) Term
+          | TermAnnotation Term (NE.NonEmpty Attribute)
+
+term :: GenStrParser st Term
+term =  TermSpecConstant <$> try specConstant
+    <|> TermQualIdentifier <$> try qualIdentifier
+    <|> try application
+    <|> try binding
+    <|> try quantifyForall
+    <|> try quantifyExists
+    <|> try annotation
+  where
+    application = betweenBrackets $ do
+      id <- qualIdentifier
+      spaces1
+      ts <- sepEndBy1 term spaces1
+      return $ TermApplication id (NE.fromList ts)
+    binding = betweenBrackets $ do
+      string "let"
+      spaces1
+      vbs <- betweenBrackets $ sepEndBy1 varBinding spaces1
+      spaces1
+      TermLet (NE.fromList vbs) <$> term
+    quantifyForall = betweenBrackets $ do
+      string "forall"
+      spaces1
+      svs <- betweenBrackets $ sepEndBy1 sortedVar spaces1
+      spaces1
+      TermForall (NE.fromList svs) <$> term
+    quantifyExists = betweenBrackets $ do
+      string "exists"
+      spaces1
+      svs <- betweenBrackets $ sepEndBy1 sortedVar spaces1
+      spaces1
+      TermExists (NE.fromList svs) <$> term
+    annotation = betweenBrackets $ do
+      char '!'
+      spaces1
+      t <- term
+      spaces1
+      attrs <- sepEndBy1 attribute spaces1
+      return $ TermAnnotation t (NE.fromList attrs)
+
