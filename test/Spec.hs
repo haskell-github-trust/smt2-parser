@@ -60,7 +60,32 @@ lexiconTest = TestList [ pN "0" ("0" :: Numeral)
                        , pf symbol "_"
                        , pf symbol "!"
                        , pf symbol "as"
-                       , pS "asleep" ("asleep" :: Symbol) -- ^ prefix
+                       , pS "asleep" ("asleep" :: Symbol) -- ^ prefixed by a reserved word
+                       , pS "+" ("+" :: Symbol)
+                       , pS "<=" ("<=" :: Symbol)
+                       , pS "x" ("x" :: Symbol)
+                       , pS "**" ("**" :: Symbol)
+                       , pS "$" ("$" :: Symbol)
+                       , pS "<sas" ("<sas" :: Symbol)
+                       , pS "<adf>" ("<adf>" :: Symbol)
+                       , pS "abc77" ("abc77" :: Symbol)
+                       , pS "*$s&6" ("*$s&6" :: Symbol)
+                       , pS ".kkk" (".kkk" :: Symbol)
+                       , pS ".8" (".8" :: Symbol)
+                       , pS "+34" ("+34" :: Symbol)
+                       , pS "-32" ("-32" :: Symbol)
+                       , pS "|this is a single quoted symbol|" ("this is a single quoted symbol" :: Symbol)
+                       , pS "||" ("" :: Symbol)
+                       , pS "|af kljˆ∗(0asfsfe2(&∗)&(#ˆ$>>>?”’]]984|" ("af kljˆ∗(0asfsfe2(&∗)&(#ˆ$>>>?”’]]984" :: Symbol)
+                       , pS "|abc|" ("abc" :: Symbol) -- ^ quoted simple symbol is the same
+                       , pS "abc" ("abc" :: Symbol)
+                       , pK ":date" ("date" :: Keyword)
+                       , pK ":a2" ("a2" :: Keyword)
+                       , pK ":foo-bar" ("foo-bar" :: Keyword)
+                       , pK ":<=" ("<=" :: Keyword)
+                       , pK ":56" ("56" :: Keyword)
+                       , pK ":->" ("->" :: Keyword)
+                       , pK ":~!@$%^&*_-+=<>.?/" ("~!@$%^&*_-+=<>.?/" :: Keyword)
                        ]
   where
     pN = pe numeral
@@ -71,6 +96,7 @@ lexiconTest = TestList [ pN "0" ("0" :: Numeral)
     pR = pe reservedWord
     pS = pe symbol
     pK = pe keyword
+
 
 specTest = TestList [ lexiconTest ]
 

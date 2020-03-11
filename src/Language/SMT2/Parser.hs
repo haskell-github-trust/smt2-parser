@@ -221,6 +221,7 @@ sort =  SortSymbol <$> try identifier
 
 data QualIdentifier = Unqualified Identifier
                     | Qualified Identifier Sort
+  deriving (Eq, Show)
 
 qualIdentifier :: GenStrParser st QualIdentifier
 qualIdentifier =  Unqualified <$> try identifier
@@ -235,11 +236,13 @@ qualIdentifier =  Unqualified <$> try identifier
       Qualified id <$> sort
 
 data VarBinding = VarBinding Symbol Term
+  deriving (Eq, Show)
 
 varBinding :: GenStrParser st VarBinding
 varBinding = betweenBrackets $ VarBinding <$> symbol <* spaces1 <*> term
 
 data SortedVar = SortedVar Symbol Sort
+  deriving (Eq, Show)
 
 sortedVar :: GenStrParser st SortedVar
 sortedVar = betweenBrackets $ SortedVar <$> symbol <* spaces1 <*> sort
@@ -250,7 +253,8 @@ data Term = TermSpecConstant SpecConstant
           | TermLet (NE.NonEmpty VarBinding) Term
           | TermForall (NE.NonEmpty SortedVar) Term
           | TermExists (NE.NonEmpty SortedVar) Term
-          | TermAnnotation Term (NE.NonEmpty Attribute)
+          | TermAnnotation Term (NE.NonEmpty Attribute) -- ^ only attributes, do not support @:pattern terms@
+  deriving (Eq, Show)
 
 term :: GenStrParser st Term
 term =  TermSpecConstant <$> try specConstant
