@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: fb4b217d17e2e9198c3ad4624d890e6e1f69b86d6d3647eedf6e7e27f6f3ed20
+-- hash: 50ef8657b7e39033f88551743b06ad9b03e614a6045cc0fd5f73a1b968436c27
 
 name:           smt2-parser
 version:        0.1.0.0
@@ -28,6 +28,7 @@ source-repository head
 library
   exposed-modules:
       Language.SMT2.Parser
+      Language.SMT2.Syntax
   other-modules:
       Paths_smt2_parser
   hs-source-dirs:

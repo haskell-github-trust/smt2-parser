@@ -9,6 +9,7 @@ module Language.SMT2.Parser where
 import           Data.Char              (toLower)
 import           Data.Functor           (($>))
 import           Data.List.NonEmpty     (NonEmpty, fromList)
+import           Language.SMT2.Syntax
 import           Text.Parsec            (ParseError, Parsec, eof, parse, try)
 import           Text.Parsec.Char
 import           Text.Parsec.Combinator
@@ -21,23 +22,12 @@ parseString p = parse p ""
 parseStringEof :: Parser a -> String -> Either ParseError a
 parseStringEof p = parse (p <* eof) ""
 
+
 -- * Lexicons (Sec. 3.1)
 --
 -- Parsers for lexicons.
 -- For a numeral, a decimal, or a string literal, the parsed result is the same.
 -- For a hexadecimal or a binary, the result is stripped with marks (#x and #b).
---
--- Note: semantics should be provided by specific theories.
--- See Remark 1 of the refrence.
-
-type Numeral       = String
-type Decimal       = String
-type Hexadecimal   = String
-type Binary        = String
-type StringLiteral = String
-type ReservedWord  = String
-type Symbol        = String
-type Keyword       = String
 
 type GenStrParser st = Parsec String st
 
@@ -114,22 +104,6 @@ keyword = do char ':'
 
 -- * S-expressions (Sec. 3.2)
 
-data SpecConstant = SCNumeral Numeral
-                  | SCDecimal Decimal
-                  | SCHexadecimal Hexadecimal
-                  | SCBinary Binary
-                  | SCString StringLiteral
-  deriving (Eq, Show)
-
-data SExpr = SEConstant SpecConstant
-           | SEReservedWord ReservedWord
-           | SESymbol Symbol
-           | SEKeyword Keyword
-           | SEList SList
-  deriving (Eq, Show)
-
-type SList = [SExpr]
-
 -- ** Utils
 
 -- | skip one or more spaces
@@ -170,10 +144,6 @@ sexpr =  SEList <$> try slist
 
 -- * Identifiers (Sec 3.3)
 
-data Identifier = IdSymbol Symbol
-                | IdIndexed Symbol (NonEmpty Numeral)
-  deriving (Eq, Show)
-
 identifier :: GenStrParser st Identifier
 identifier =  IdSymbol <$> symbol -- ^ symbol cannot start with (, so no ambiguity
           <|> idIndexed
@@ -184,16 +154,8 @@ identifier =  IdSymbol <$> symbol -- ^ symbol cannot start with (, so no ambigui
       s <- symbol <* spaces1
       IdIndexed s <$> sepSpace1 numeral
 
+
 -- * Attributes (Sec. 3.4)
-
-data AttributeValue = AttrValSpecConstant SpecConstant
-                    | AttrValSymbol Symbol
-                    | AttrValSList SList
-  deriving (Eq, Show)
-
-data Attribute = AttrKey Keyword
-               | AttrKeyValue Keyword AttributeValue
-  deriving (Eq, Show)
 
 attributeValue :: GenStrParser st AttributeValue
 attributeValue =  AttrValSpecConstant <$> specConstant
@@ -209,10 +171,6 @@ attribute =  AttrKeyValue <$> try (keyword <* spaces1) <*> attributeValue
 
 -- * Sorts (Sec 3.5)
 
-data Sort = SortSymbol Identifier
-          | SortParameter Identifier (NonEmpty Sort)
-  deriving (Eq, Show)
-
 sortParameter :: GenStrParser st Sort
 sortParameter = betweenBrackets $ do
   i <- identifier <* spaces1
@@ -223,11 +181,8 @@ sort =  SortSymbol <$> try identifier
     <|> sortParameter
     <?> "sort"
 
--- * Terms and Formulas (Sec 3.6)
 
-data QualIdentifier = Unqualified Identifier
-                    | Qualified Identifier Sort
-  deriving (Eq, Show)
+-- * Terms and Formulas (Sec 3.6)
 
 qualIdentifier :: GenStrParser st QualIdentifier
 qualIdentifier =  Unqualified <$> try identifier
@@ -240,26 +195,11 @@ qualIdentifier =  Unqualified <$> try identifier
       id <- identifier <* spaces1
       Qualified id <$> sort
 
-data VarBinding = VarBinding Symbol Term
-  deriving (Eq, Show)
-
 varBinding :: GenStrParser st VarBinding
 varBinding = betweenBrackets $ VarBinding <$> symbol <* spaces1 <*> term
 
-data SortedVar = SortedVar Symbol Sort
-  deriving (Eq, Show)
-
 sortedVar :: GenStrParser st SortedVar
 sortedVar = betweenBrackets $ SortedVar <$> symbol <* spaces1 <*> sort
-
-data Term = TermSpecConstant SpecConstant
-          | TermQualIdentifier QualIdentifier
-          | TermApplication QualIdentifier (NonEmpty Term)
-          | TermLet (NonEmpty VarBinding) Term
-          | TermForall (NonEmpty SortedVar) Term
-          | TermExists (NonEmpty SortedVar) Term
-          | TermAnnotation Term (NonEmpty Attribute) -- ^ only attributes, do not support e.g. @:pattern terms@
-  deriving (Eq, Show)
 
 term :: GenStrParser st Term
 term =  TermSpecConstant <$> try specConstant
@@ -291,29 +231,8 @@ term =  TermSpecConstant <$> try specConstant
       t <- term <* spaces1
       TermAnnotation t <$> sepSpace1 attribute
 
+
 -- * Theory declarations (Sec 3.7)
-
-data SortSymbolDecl = SortSymbolDecl Identifier Numeral [Attribute]
-
-data MetaSpecConstant = MSC_NUMERAL | MSC_DECIMAL | MSC_STRING
-
-data FunSymbolDecl = FunConstant SpecConstant Sort [Attribute]
-                   | FunMeta MetaSpecConstant Sort [Attribute]
-                   | FunIdentifier Identifier (NonEmpty Sort) [Attribute]  -- ^ potentially overloaded
-
-data ParFunSymbolDecl = NonPar FunSymbolDecl -- ^ non-parametric
-                      | Par (NonEmpty Symbol) Identifier (NonEmpty Sort) [Attribute] -- ^ parametric
-
-data TheoryAttribute = TASorts (NonEmpty SortSymbolDecl)
-                     | TAFuns (NonEmpty ParFunSymbolDecl)
-                     | TASortsDescription String
-                     | TAFunsDescription String
-                     | TADefinition String
-                     | TAValues String
-                     | TANotes String
-                     | TAAttr Attribute
-
-data TheoryDecl = TheoryDecl Symbol (NonEmpty TheoryAttribute)
 
 sortSymbolDecl :: GenStrParser st SortSymbolDecl
 sortSymbolDecl = betweenBrackets $ do
@@ -383,16 +302,8 @@ theoryDecl = betweenBrackets $ do
   s <- symbol <* spaces1
   TheoryDecl s <$> sepSpace1 theoryAttribute
 
+
 -- * Logic Declarations (Sec 3.8)
-
-data LogicAttribute = LATheories (NonEmpty Symbol)
-                    | LALanguage String
-                    | LAExtensions String
-                    | LAValues String
-                    | LANotes String
-                    | LAAttr Attribute
-
-data Logic = Logic Symbol (NonEmpty LogicAttribute)
 
 logicAttribute :: GenStrParser st LogicAttribute
 logicAttribute = attr "theories" *> (LATheories <$> sepSpace1 symbol)
@@ -402,3 +313,4 @@ logic = betweenBrackets $ do
   string "logic" <* spaces1
   s <- symbol <* spaces1
   Logic s <$> sepSpace1 logicAttribute
+
