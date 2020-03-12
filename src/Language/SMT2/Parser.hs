@@ -130,6 +130,8 @@ data SExpr = SEConstant SpecConstant
 
 type SList = [SExpr]
 
+-- ** Utils
+
 -- | skip one or more spaces
 spaces1 :: GenStrParser st ()
 spaces1 = skipMany1 space
@@ -138,8 +140,16 @@ spaces1 = skipMany1 space
 betweenBrackets :: GenStrParser st a -> GenStrParser st a
 betweenBrackets = between (char '(' <* spaces) (spaces *> char ')') . try
 
+-- | many p, separated by spaces1, possibly has a trailing spaces1
+sepSpace :: GenStrParser st a -> GenStrParser st [a]
+sepSpace p = sepEndBy p spaces1
+
+-- | many1 p, separated by spaces1, possibly has a trailing spaces1
+sepSpace1 :: GenStrParser st a -> GenStrParser st (NonEmpty a)
+sepSpace1 p = fromList <$> sepEndBy1 p spaces1
+
 slist :: GenStrParser st SList
-slist = betweenBrackets $ sepEndBy sexpr spaces1
+slist = betweenBrackets . sepSpace $ sexpr
 
 specConstant :: GenStrParser st SpecConstant
 specConstant =  SCNumeral <$> try numeral
@@ -164,18 +174,15 @@ data Identifier = IdSymbol Symbol
                 | IdIndexed Symbol (NonEmpty Numeral)
   deriving (Eq, Show)
 
-idIndexed :: GenStrParser st Identifier
-idIndexed = betweenBrackets $ do
-  char '_' <* spaces1
-  s <- symbol <* spaces1
-  ns <- sepEndBy1 numeral spaces1
-  return $ IdIndexed s (fromList ns)
-
-
 identifier :: GenStrParser st Identifier
 identifier =  IdSymbol <$> symbol -- ^ symbol cannot start with (, so no ambiguity
           <|> idIndexed
           <?> "identifier"
+  where
+    idIndexed = betweenBrackets $ do
+      char '_' <* spaces1
+      s <- symbol <* spaces1
+      IdIndexed s <$> sepSpace1 numeral
 
 -- * Attributes (Sec. 3.4)
 
@@ -199,6 +206,7 @@ attribute =  AttrKeyValue <$> try (keyword <* spaces1) <*> attributeValue
          <|> AttrKey <$> keyword
          <?> "attribute"
 
+
 -- * Sorts (Sec 3.5)
 
 data Sort = SortSymbol Identifier
@@ -208,8 +216,7 @@ data Sort = SortSymbol Identifier
 sortParameter :: GenStrParser st Sort
 sortParameter = betweenBrackets $ do
   i <- identifier <* spaces1
-  ss <- sepEndBy1 sort spaces1
-  return $ SortParameter i (fromList ss)
+  SortParameter i <$> sepSpace1 sort
 
 sort :: GenStrParser st Sort
 sort =  SortSymbol <$> try identifier
@@ -266,28 +273,23 @@ term =  TermSpecConstant <$> try specConstant
   where
     application = betweenBrackets $ do
       id <- qualIdentifier <* spaces1
-      ts <- sepEndBy1 term spaces1
-      return $ TermApplication id (fromList ts)
+      TermApplication id <$> sepSpace1 term
     binding = betweenBrackets $ do
       string "let" <* spaces1
-      vbs <- betweenBrackets $ sepEndBy1 varBinding spaces1
-      spaces1
-      TermLet (fromList vbs) <$> term
+      vbs <- betweenBrackets $ sepSpace1 varBinding
+      TermLet vbs <$> term
     quantifyForall = betweenBrackets $ do
       string "forall" <* spaces1
-      svs <- betweenBrackets $ sepEndBy1 sortedVar spaces1
-      spaces1
-      TermForall (fromList svs) <$> term
+      svs <- betweenBrackets $ sepSpace1 sortedVar
+      TermForall svs <$> term
     quantifyExists = betweenBrackets $ do
       string "exists" <* spaces1
-      svs <- betweenBrackets $ sepEndBy1 sortedVar spaces1
-      spaces1
-      TermExists (fromList svs) <$> term
+      svs <- betweenBrackets $ sepSpace1 sortedVar
+      TermExists svs <$> term
     annotation = betweenBrackets $ do
       char '!' <* spaces1
       t <- term <* spaces1
-      attrs <- sepEndBy1 attribute spaces1
-      return $ TermAnnotation t (fromList attrs)
+      TermAnnotation t <$> sepSpace1 attribute
 
 -- * Theory declarations (Sec 3.7)
 
@@ -317,8 +319,7 @@ sortSymbolDecl :: GenStrParser st SortSymbolDecl
 sortSymbolDecl = betweenBrackets $ do
   i <- identifier <* spaces1
   n <- numeral <* spaces1
-  as <- sepEndBy attribute spaces1
-  return $ SortSymbolDecl i n as
+  SortSymbolDecl i n <$> sepSpace attribute
 
 metaSpecConstant :: GenStrParser st MetaSpecConstant
 metaSpecConstant =  string "NUMERAL" $> MSC_NUMERAL
@@ -335,18 +336,16 @@ funSymbolDecl =  try (betweenBrackets funConstant)
     funConstant = do
       sc <- specConstant <* spaces1
       s <- sort <* spaces1
-      as <- sepEndBy attribute spaces1
-      return $ FunConstant sc s as
+      FunConstant sc s <$> sepSpace attribute
     funMeta = do
       m <- metaSpecConstant <* spaces1
       s <- sort <* spaces1
-      as <- sepEndBy attribute spaces1
-      return $ FunMeta m s as
+      FunMeta m s <$> sepSpace attribute
     funIdentifier = do
       i <- identifier <* spaces1
-      ss <- sepEndBy1 sort spaces1
-      as <- sepEndBy attribute spaces1
-      return $ FunIdentifier i (fromList ss) as
+      ss <- sepSpace1 sort
+      as <- sepSpace attribute
+      return $ FunIdentifier i ss as
 
 parFunSymbolDecl :: GenStrParser st ParFunSymbolDecl
 parFunSymbolDecl =  NonPar <$> funSymbolDecl
@@ -355,17 +354,21 @@ parFunSymbolDecl =  NonPar <$> funSymbolDecl
   where
     par = do
       string "par" <* spaces1
-      syms <- betweenBrackets $ sepEndBy1 symbol spaces1
+      syms <- betweenBrackets . sepSpace1 $ symbol
       spaces1
       betweenBrackets $ do
         idt <- identifier <* spaces1
-        ss <- sepEndBy1 sort spaces1
-        as <- sepEndBy attribute spaces1
-        return $ Par (fromList syms) idt (fromList ss) as
+        ss <- sepSpace1 sort
+        Par syms idt ss <$> sepSpace attribute
+
+-- | match an attribute, ignore the spaces after it,
+-- input is not consumed if failed
+attr :: String -> GenStrParser st ()
+attr s = try $ string (':':s) >> spaces1 >> pure ()
 
 theoryAttribute :: GenStrParser st TheoryAttribute
-theoryAttribute =  attr "sorts" *> betweenBrackets (TASorts . fromList <$> sepEndBy1 sortSymbolDecl spaces1)
-               <|> attr "funs" *> betweenBrackets (TAFuns . fromList <$> sepEndBy1 parFunSymbolDecl spaces1)
+theoryAttribute =  attr "sorts" *> betweenBrackets (TASorts <$> sepSpace1 sortSymbolDecl)
+               <|> attr "funs" *> betweenBrackets (TAFuns <$> sepSpace1 parFunSymbolDecl)
                <|> attr "sorts-description" *> (TASortsDescription <$> stringLiteral)
                <|> attr "funs-description" *> (TAFunsDescription <$> stringLiteral)
                <|> attr "definition" *> (TADefinition <$> stringLiteral)
@@ -373,13 +376,29 @@ theoryAttribute =  attr "sorts" *> betweenBrackets (TASorts . fromList <$> sepEn
                <|> attr "notes" *> (TANotes <$> stringLiteral)
                <|> TAAttr <$> attribute
                <?> "theory attributes"
-  where
-    attr :: String -> GenStrParser st ()
-    attr s = try $ string (':':s) >> spaces1 >> pure ()
 
 theoryDecl :: GenStrParser st TheoryDecl
 theoryDecl = betweenBrackets $ do
   string "theory" <* spaces1
   s <- symbol <* spaces1
-  as <- sepEndBy1 theoryAttribute spaces1
-  return $ TheoryDecl s (fromList as)
+  TheoryDecl s <$> sepSpace1 theoryAttribute
+
+-- * Logic Declarations (Sec 3.8)
+
+data LogicAttribute = LATheories (NonEmpty Symbol)
+                    | LALanguage String
+                    | LAExtensions String
+                    | LAValues String
+                    | LANotes String
+                    | LAAttr Attribute
+
+data Logic = Logic Symbol (NonEmpty LogicAttribute)
+
+logicAttribute :: GenStrParser st LogicAttribute
+logicAttribute = attr "theories" *> (LATheories <$> sepSpace1 symbol)
+
+logic :: GenStrParser st Logic
+logic = betweenBrackets $ do
+  string "logic" <* spaces1
+  s <- symbol <* spaces1
+  Logic s <$> sepSpace1 logicAttribute
