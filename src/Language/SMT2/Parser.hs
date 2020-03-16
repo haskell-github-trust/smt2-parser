@@ -111,7 +111,7 @@ spaces1 = skipMany1 space
 
 -- | between round brackets
 betweenBrackets :: GenStrParser st a -> GenStrParser st a
-betweenBrackets = between (char '(' <* spaces) (spaces *> char ')') . try
+betweenBrackets = try . between (char '(' <* spaces) (spaces *> char ')')
 
 -- | many p, separated by spaces1, possibly has a trailing spaces1
 sepSpace :: GenStrParser st a -> GenStrParser st [a]
@@ -121,10 +121,15 @@ sepSpace p = sepEndBy p spaces1
 sepSpace1 :: GenStrParser st a -> GenStrParser st (NonEmpty a)
 sepSpace1 p = fromList <$> sepEndBy1 p spaces1
 
--- | match an string, ignore the spaces after it,
+-- | match an string, ignore spaces after,
 -- input is not consumed if failed
 tryStr :: String -> GenStrParser st ()
-tryStr s = try $ string s >> spaces1 >> pure ()
+tryStr s = try $ string s *> spaces $> ()
+
+-- | match an string, must have one or more spaces after, ignore them,
+-- input is not consumed if failed
+tryStr1 :: String -> GenStrParser st ()
+tryStr1 s = try $ string s *> spaces1 $> ()
 
 -- | like tryStr, but prefix with a ':'
 tryAttr :: String -> GenStrParser st ()
@@ -232,10 +237,12 @@ term =  TermSpecConstant <$> try specConstant
     quantifyForall = betweenBrackets $ do
       tryStr "forall"
       svs <- betweenBrackets $ sepSpace1 sortedVar
+      spaces
       TermForall svs <$> term
     quantifyExists = betweenBrackets $ do
       tryStr "exists"
       svs <- betweenBrackets $ sepSpace1 sortedVar
+      spaces
       TermExists svs <$> term
     annotation = betweenBrackets $ do
       char '!' <* spaces1
@@ -330,6 +337,8 @@ command =  cmd "set-logic" (SetLogic <$> symbol)
        <|> cmd "set-info" (SetInfo <$> attribute)
        <|> cmd "declare-sort" declareSort
        <|> cmd "define-sort" defineSort
+       <|> cmd "declare-fun" declareFun
+       <|> cmd "define-fun" defineFun
        <|> cmd "push" (Push <$> numeral)
        <|> cmd "pop" (Pop <$> numeral)
        <|> cmd "assert" (Assert <$> term)
@@ -344,7 +353,7 @@ command =  cmd "set-logic" (SetLogic <$> symbol)
        <|> cmd "exit" (pure Exit)
        <?> "command"
   where
-    cmd s p = try $ betweenBrackets (tryStr s >> p)
+    cmd s p = try $ betweenBrackets (tryStr s *> p)
     declareSort = do
       s <- symbol <* spaces1
       DeclareSort s <$> numeral
@@ -353,10 +362,22 @@ command =  cmd "set-logic" (SetLogic <$> symbol)
       ss <- betweenBrackets $ sepSpace symbol
       spaces1
       DefineSort s ss <$> sort
+    declareFun = do
+      s <- symbol <* spaces1
+      ss <- betweenBrackets $ sepSpace sort
+      spaces1
+      DeclareFun s ss <$> sort
+    defineFun = do
+      s <- symbol <* spaces1
+      svs <- betweenBrackets $ sepSpace sortedVar
+      spaces1
+      rs <- sort <* spaces1
+      DefineFun s svs rs <$> term
     getValue = betweenBrackets $ sepSpace1 term
 
+-- | note that two commands in a script may have no spaces in-between
 script :: GenStrParser st Script
-script = sepSpace command
+script = spaces *> many (command <* spaces)
 
 bValue :: GenStrParser st BValue
 bValue =  string "true" $> BTrue

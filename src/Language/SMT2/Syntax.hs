@@ -97,17 +97,21 @@ data Term = TermSpecConstant SpecConstant
 -- * Theory declarations (Sec 3.7)
 
 data SortSymbolDecl = SortSymbolDecl Identifier Numeral [Attribute]
+  deriving (Eq, Show)
 
 data MetaSpecConstant = MSC_NUMERAL | MSC_DECIMAL | MSC_STRING
+  deriving (Eq, Show)
 
 data FunSymbolDecl = FunConstant SpecConstant Sort [Attribute]
                    | FunMeta MetaSpecConstant Sort [Attribute]
                    | FunIdentifier Identifier (NonEmpty Sort) [Attribute]
                      -- ^ potentially overloaded
+  deriving (Eq, Show)
 
 data ParFunSymbolDecl = NonPar FunSymbolDecl
                         -- ^ non-parametric
                       | Par (NonEmpty Symbol) Identifier (NonEmpty Sort) [Attribute]
+  deriving (Eq, Show)
                         -- ^ parametric
 
 data TheoryAttribute = TASorts (NonEmpty SortSymbolDecl)
@@ -118,8 +122,10 @@ data TheoryAttribute = TASorts (NonEmpty SortSymbolDecl)
                      | TAValues String
                      | TANotes String
                      | TAAttr Attribute
+  deriving (Eq, Show)
 
 data TheoryDecl = TheoryDecl Symbol (NonEmpty TheoryAttribute)
+  deriving (Eq, Show)
 
 
 -- * Logic Declarations (Sec 3.8)
@@ -130,8 +136,10 @@ data LogicAttribute = LATheories (NonEmpty Symbol)
                     | LAValues String
                     | LANotes String
                     | LAAttr Attribute
+  deriving (Eq, Show)
 
 data Logic = Logic Symbol (NonEmpty LogicAttribute)
+  deriving (Eq, Show)
 
 
 -- * Scripts (Sec 3.9)
@@ -155,10 +163,12 @@ data Command = SetLogic Symbol
              | GetOption Keyword
              | GetInfo InfoFlag
              | Exit
+  deriving (Eq, Show)
 
 type Script = [Command]
 
 data BValue = BTrue | BFalse
+  deriving (Eq, Show)
 
 data ScriptOption = PrintSuccess BValue
                   | ExpandDefinitions BValue
@@ -172,24 +182,30 @@ data ScriptOption = PrintSuccess BValue
                   | RandomSeed Numeral
                   | Verbosity Numeral
                   | OptionAttr Attribute
+  deriving (Eq, Show)
 
 data InfoFlag = ErrorBehavior | Name | Authours | Version
               | Status | ReasonUnknown
               | IFKeyword Keyword
               | AllStatistics
+  deriving (Eq, Show)
 
 -- ** Responses
 
 data GenRes success = ResUnsupported | ResSuccess success | ResError StringLiteral
+  deriving (Eq, Show)
 
 class ResParsable s where
   resParser :: GenStrParser st s
 
 data ResErrorBehavior = ImmediateExit | ContinuedExecution
+  deriving (Eq, Show)
 
 data ResReasonUnknown = Memout | Incomplete
+  deriving (Eq, Show)
 
 data ResStatus = Sat | Unsat | Unknown
+  deriving (Eq, Show)
 
 data InfoResponse = IRErrorBehaviour ResErrorBehavior
                   | IRName StringLiteral
@@ -197,6 +213,7 @@ data InfoResponse = IRErrorBehaviour ResErrorBehavior
                   | IRVersion StringLiteral
                   | IRReasonUnknown ResReasonUnknown
                   | IRAttr Attribute
+  deriving (Eq, Show)
 
 -- *** instances
 
