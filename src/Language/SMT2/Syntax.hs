@@ -7,7 +7,9 @@
 module Language.SMT2.Syntax where
 
 import           Data.List.NonEmpty (NonEmpty)
+import           Text.Parsec        (Parsec)
 
+type GenStrParser st = Parsec String st
 
 -- * Lexicons (Sec. 3.1)
 --
@@ -130,4 +132,90 @@ data LogicAttribute = LATheories (NonEmpty Symbol)
                     | LAAttr Attribute
 
 data Logic = Logic Symbol (NonEmpty LogicAttribute)
+
+
+-- * Scripts (Sec 3.9)
+
+data Command = SetLogic Symbol
+             | SetOption ScriptOption
+             | SetInfo Attribute
+             | DeclareSort Symbol Numeral
+             | DefineSort Symbol [Symbol] Sort
+             | DeclareFun Symbol [Sort] Sort
+             | DefineFun Symbol [SortedVar] Sort Term
+             | Push Numeral
+             | Pop Numeral
+             | Assert Term
+             | CheckSat
+             | GetAssertions
+             | GetProof
+             | GetUnsatCore
+             | GetValue (NonEmpty Term)
+             | GetAssignment
+             | GetOption Keyword
+             | GetInfo InfoFlag
+             | Exit
+
+type Script = [Command]
+
+data BValue = BTrue | BFalse
+
+data ScriptOption = PrintSuccess BValue
+                  | ExpandDefinitions BValue
+                  | InteractiveMode BValue
+                  | ProduceProofs BValue
+                  | ProduceUnsatCores BValue
+                  | ProduceModels BValue
+                  | ProduceAssignments BValue
+                  | RegularOutputChannel StringLiteral
+                  | DiagnosticOutputChannel StringLiteral
+                  | RandomSeed Numeral
+                  | Verbosity Numeral
+                  | OptionAttr Attribute
+
+data InfoFlag = ErrorBehavior | Name | Authours | Version
+              | Status | ReasonUnknown
+              | IFKeyword Keyword
+              | AllStatistics
+
+-- ** Responses
+
+data GenRes success = ResUnsupported | ResSuccess success | ResError StringLiteral
+
+class ResParsable s where
+  resParser :: GenStrParser st s
+
+data ResErrorBehavior = ImmediateExit | ContinuedExecution
+
+data ResReasonUnknown = Memout | Incomplete
+
+data ResStatus = Sat | Unsat | Unknown
+
+data InfoResponse = IRErrorBehaviour ResErrorBehavior
+                  | IRName StringLiteral
+                  | IRAuthours StringLiteral
+                  | IRVersion StringLiteral
+                  | IRReasonUnknown ResReasonUnknown
+                  | IRAttr Attribute
+
+-- *** instances
+
+type GetInfoRes = GenRes (NonEmpty InfoResponse)
+
+type CheckSatRes = GenRes ResStatus
+
+type GetAssertionsRes = GenRes [Term]
+
+type Proof = SExpr
+type GetProofRes = GenRes Proof
+
+type GetUnsatCoreRes = GenRes [Symbol]
+
+type ValuationPair = (Term, Term)
+type GetValueRes = GenRes (NonEmpty ValuationPair)
+
+type TValuationPair = (Symbol, BValue)
+type GetAssignmentRes = GenRes [TValuationPair]
+
+type GetOptionRes = GenRes AttributeValue
 

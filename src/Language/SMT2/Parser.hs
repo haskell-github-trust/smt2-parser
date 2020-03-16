@@ -4,13 +4,14 @@
  - Maintainer  : yokis1997@pku.edu.cn
  - Stability   : experimental
 -}
+{-# LANGUAGE FlexibleInstances #-}
 module Language.SMT2.Parser where
 
 import           Data.Char              (toLower)
 import           Data.Functor           (($>))
 import           Data.List.NonEmpty     (NonEmpty, fromList)
 import           Language.SMT2.Syntax
-import           Text.Parsec            (ParseError, Parsec, eof, parse, try)
+import           Text.Parsec            (ParseError, eof, parse, try)
 import           Text.Parsec.Char
 import           Text.Parsec.Combinator
 import           Text.Parsec.Prim       (many, (<?>), (<|>))
@@ -28,8 +29,6 @@ parseStringEof p = parse (p <* eof) ""
 -- Parsers for lexicons.
 -- For a numeral, a decimal, or a string literal, the parsed result is the same.
 -- For a hexadecimal or a binary, the result is stripped with marks (#x and #b).
-
-type GenStrParser st = Parsec String st
 
 numeral :: GenStrParser st Numeral
 numeral =  string "0"
@@ -102,9 +101,9 @@ keyword = do char ':'
              many1 (alphaNum <|> nameChar)
 
 
--- * S-expressions (Sec. 3.2)
-
--- ** Utils
+-- * Utils
+--
+-- commonly used combinators
 
 -- | skip one or more spaces
 spaces1 :: GenStrParser st ()
@@ -121,6 +120,18 @@ sepSpace p = sepEndBy p spaces1
 -- | many1 p, separated by spaces1, possibly has a trailing spaces1
 sepSpace1 :: GenStrParser st a -> GenStrParser st (NonEmpty a)
 sepSpace1 p = fromList <$> sepEndBy1 p spaces1
+
+-- | match an string, ignore the spaces after it,
+-- input is not consumed if failed
+tryStr :: String -> GenStrParser st ()
+tryStr s = try $ string s >> spaces1 >> pure ()
+
+-- | like tryStr, but prefix with a ':'
+tryAttr :: String -> GenStrParser st ()
+tryAttr s = tryStr (':':s)
+
+
+-- * S-expressions (Sec. 3.2)
 
 slist :: GenStrParser st SList
 slist = betweenBrackets . sepSpace $ sexpr
@@ -191,7 +202,7 @@ qualIdentifier =  Unqualified <$> try identifier
   where
     annotation :: GenStrParser st QualIdentifier
     annotation = do
-      string "as"
+      tryStr "as"
       id <- identifier <* spaces1
       Qualified id <$> sort
 
@@ -215,15 +226,15 @@ term =  TermSpecConstant <$> try specConstant
       id <- qualIdentifier <* spaces1
       TermApplication id <$> sepSpace1 term
     binding = betweenBrackets $ do
-      string "let" <* spaces1
+      tryStr "let"
       vbs <- betweenBrackets $ sepSpace1 varBinding
       TermLet vbs <$> term
     quantifyForall = betweenBrackets $ do
-      string "forall" <* spaces1
+      tryStr "forall"
       svs <- betweenBrackets $ sepSpace1 sortedVar
       TermForall svs <$> term
     quantifyExists = betweenBrackets $ do
-      string "exists" <* spaces1
+      tryStr "exists"
       svs <- betweenBrackets $ sepSpace1 sortedVar
       TermExists svs <$> term
     annotation = betweenBrackets $ do
@@ -272,7 +283,7 @@ parFunSymbolDecl =  NonPar <$> funSymbolDecl
                 <?> "potentially parametric function symbol declaration"
   where
     par = do
-      string "par" <* spaces1
+      tryStr "par"
       syms <- betweenBrackets . sepSpace1 $ symbol
       spaces1
       betweenBrackets $ do
@@ -280,25 +291,21 @@ parFunSymbolDecl =  NonPar <$> funSymbolDecl
         ss <- sepSpace1 sort
         Par syms idt ss <$> sepSpace attribute
 
--- | match an attribute, ignore the spaces after it,
--- input is not consumed if failed
-attr :: String -> GenStrParser st ()
-attr s = try $ string (':':s) >> spaces1 >> pure ()
 
 theoryAttribute :: GenStrParser st TheoryAttribute
-theoryAttribute =  attr "sorts" *> betweenBrackets (TASorts <$> sepSpace1 sortSymbolDecl)
-               <|> attr "funs" *> betweenBrackets (TAFuns <$> sepSpace1 parFunSymbolDecl)
-               <|> attr "sorts-description" *> (TASortsDescription <$> stringLiteral)
-               <|> attr "funs-description" *> (TAFunsDescription <$> stringLiteral)
-               <|> attr "definition" *> (TADefinition <$> stringLiteral)
-               <|> attr "values" *> (TAValues <$> stringLiteral)
-               <|> attr "notes" *> (TANotes <$> stringLiteral)
+theoryAttribute =  tryAttr "sorts" *> betweenBrackets (TASorts <$> sepSpace1 sortSymbolDecl)
+               <|> tryAttr "funs" *> betweenBrackets (TAFuns <$> sepSpace1 parFunSymbolDecl)
+               <|> tryAttr "sorts-description" *> (TASortsDescription <$> stringLiteral)
+               <|> tryAttr "funs-description" *> (TAFunsDescription <$> stringLiteral)
+               <|> tryAttr "definition" *> (TADefinition <$> stringLiteral)
+               <|> tryAttr "values" *> (TAValues <$> stringLiteral)
+               <|> tryAttr "notes" *> (TANotes <$> stringLiteral)
                <|> TAAttr <$> attribute
                <?> "theory attributes"
 
 theoryDecl :: GenStrParser st TheoryDecl
 theoryDecl = betweenBrackets $ do
-  string "theory" <* spaces1
+  tryStr "theory"
   s <- symbol <* spaces1
   TheoryDecl s <$> sepSpace1 theoryAttribute
 
@@ -306,11 +313,177 @@ theoryDecl = betweenBrackets $ do
 -- * Logic Declarations (Sec 3.8)
 
 logicAttribute :: GenStrParser st LogicAttribute
-logicAttribute = attr "theories" *> (LATheories <$> sepSpace1 symbol)
+logicAttribute = tryAttr "theories" *> (LATheories <$> sepSpace1 symbol)
 
 logic :: GenStrParser st Logic
 logic = betweenBrackets $ do
-  string "logic" <* spaces1
+  tryStr "logic"
   s <- symbol <* spaces1
   Logic s <$> sepSpace1 logicAttribute
+
+
+-- * Scripts (Sec 3.9)
+
+command :: GenStrParser st Command
+command =  cmd "set-logic" (SetLogic <$> symbol)
+       <|> cmd "set-option" (SetOption <$> scriptOption)
+       <|> cmd "set-info" (SetInfo <$> attribute)
+       <|> cmd "declare-sort" declareSort
+       <|> cmd "define-sort" defineSort
+       <|> cmd "push" (Push <$> numeral)
+       <|> cmd "pop" (Pop <$> numeral)
+       <|> cmd "assert" (Assert <$> term)
+       <|> cmd "check-sat" (pure CheckSat)
+       <|> cmd "get-assertions" (pure GetAssertions)
+       <|> cmd "get-proof" (pure GetProof)
+       <|> cmd "get-unsat-core" (pure GetUnsatCore)
+       <|> cmd "get-value" (GetValue <$> getValue)
+       <|> cmd "get-assignment" (pure GetAssignment)
+       <|> cmd "get-option" (GetOption <$> keyword)
+       <|> cmd "get-info" (GetInfo <$> infoFlag)
+       <|> cmd "exit" (pure Exit)
+       <?> "command"
+  where
+    cmd s p = try $ betweenBrackets (tryStr s >> p)
+    declareSort = do
+      s <- symbol <* spaces1
+      DeclareSort s <$> numeral
+    defineSort = do
+      s <- symbol <* spaces1
+      ss <- betweenBrackets $ sepSpace symbol
+      spaces1
+      DefineSort s ss <$> sort
+    getValue = betweenBrackets $ sepSpace1 term
+
+script :: GenStrParser st Script
+script = sepSpace command
+
+bValue :: GenStrParser st BValue
+bValue =  string "true" $> BTrue
+      <|> string "false" $> BFalse
+      <?> "bool value"
+
+scriptOption :: GenStrParser st ScriptOption
+scriptOption =  PrintSuccess <$> optB "print-success"
+            <|> ExpandDefinitions <$> optB "expand-definitions"
+            <|> InteractiveMode <$> optB "interactive-mode"
+            <|> ProduceProofs <$> optB "produce-proofs"
+            <|> ProduceUnsatCores <$> optB "produce-unsat-cores"
+            <|> ProduceModels <$> optB "produce-models"
+            <|> ProduceAssignments <$> optB "produce-assignments"
+            <|> RegularOutputChannel <$> opt "regular-output-channel" stringLiteral
+            <|> DiagnosticOutputChannel <$> opt "diagnostic-output-channel" stringLiteral
+            <|> RandomSeed <$> opt "random-seed" numeral
+            <|> Verbosity <$> opt "verbosity" numeral
+            <|> OptionAttr <$> attribute
+            <?> "script option"
+  where
+    opt s p = tryAttr s *> spaces1 *> p
+    optB s = opt s bValue
+
+infoFlag :: GenStrParser st InfoFlag
+infoFlag =  tryAttr "error-behavior" $> ErrorBehavior
+        <|> tryAttr "name" $> Name
+        <|> tryAttr "authors" $> Authours
+        <|> tryAttr "version" $> Version
+        <|> tryAttr "status" $> Status
+        <|> tryAttr "reason-unknown" $> ReasonUnknown
+        <|> IFKeyword <$> keyword
+        <|> tryAttr "all-statistics" $> AllStatistics
+        <?> "info flag"
+
+-- ** Responses
+
+genRes :: ResParsable success => GenStrParser st (GenRes success)
+genRes =  tryStr "unsupported" $> ResUnsupported
+      <|> ResError <$> betweenBrackets (tryStr "error" *> spaces1 *> stringLiteral)
+      <|> ResSuccess <$> resParser
+
+resErrorBehaviour :: GenStrParser st ResErrorBehavior
+resErrorBehaviour =  tryStr "immediate-exit" $> ImmediateExit
+                 <|> tryStr "continued-execution" $> ContinuedExecution
+                 <?> "response error behavior"
+
+resReasonUnknown :: GenStrParser st ResReasonUnknown
+resReasonUnknown =  tryStr "memout" $> Memout
+                <|> tryStr "incomplete" $> Incomplete
+                <?> "response reason unknown"
+
+resStatus :: GenStrParser st ResStatus
+resStatus =  tryStr "sat" $> Sat
+         <|> tryStr "unsat" $> Unsat
+         <|> tryStr "unknown" $> Unknown
+
+instance ResParsable ResStatus where
+  resParser = resStatus
+
+infoResponse :: GenStrParser st InfoResponse
+infoResponse =  IRErrorBehaviour <$> (tryAttr "error-behavior" *> resErrorBehaviour)
+            <|> IRName <$> (tryAttr "name" *> stringLiteral)
+            <|> IRAuthours <$> (tryAttr "authors" *> stringLiteral)
+            <|> IRVersion <$> (tryAttr "version" *> stringLiteral)
+            <|> IRReasonUnknown <$> (tryAttr "reason-unknown" *> resReasonUnknown)
+            <|> IRAttr <$> attribute
+
+instance ResParsable (NonEmpty InfoResponse) where
+  resParser = betweenBrackets $ sepSpace1 infoResponse
+
+ -- *** instances
+
+getInfoRes :: GenStrParser st GetInfoRes
+getInfoRes = genRes
+
+checkStatusRes :: GenStrParser st CheckSatRes
+checkStatusRes = genRes
+
+instance ResParsable [Term] where
+  resParser = betweenBrackets $ sepSpace term
+
+getAssertionsRes :: GenStrParser st GetAssertionsRes
+getAssertionsRes = genRes
+
+proof :: GenStrParser st Proof
+proof = sexpr
+
+instance ResParsable Proof where
+  resParser = proof
+
+getProofRes :: GenStrParser st GetProofRes
+getProofRes = genRes
+
+instance ResParsable [Symbol] where
+  resParser = betweenBrackets $ sepSpace symbol
+
+getUnsatCoreRes :: GenStrParser st GetUnsatCoreRes
+getUnsatCoreRes = genRes
+
+valuationPair :: GenStrParser st ValuationPair
+valuationPair = betweenBrackets $ do
+  t1 <- term <* spaces1
+  t2 <- term
+  return (t1, t2)
+
+instance ResParsable (NonEmpty ValuationPair) where
+  resParser = betweenBrackets $ sepSpace1 valuationPair
+
+getValueRes :: GenStrParser st GetValueRes
+getValueRes = genRes
+
+tValuationPair :: GenStrParser st TValuationPair
+tValuationPair = betweenBrackets $ do
+  s <- symbol <* spaces1
+  b <- bValue
+  return (s, b)
+
+instance ResParsable [TValuationPair] where
+  resParser = betweenBrackets $ sepSpace tValuationPair
+
+getAssignmentRes :: GenStrParser st GetAssignmentRes
+getAssignmentRes = genRes
+
+instance ResParsable AttributeValue where
+  resParser = attributeValue
+
+getOptionRes :: GenStrParser st GetOptionRes
+getOptionRes = genRes
 
