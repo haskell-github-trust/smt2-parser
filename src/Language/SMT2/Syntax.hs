@@ -116,11 +116,11 @@ data ParFunSymbolDecl = NonPar FunSymbolDecl
 
 data TheoryAttribute = TASorts (NonEmpty SortSymbolDecl)
                      | TAFuns (NonEmpty ParFunSymbolDecl)
-                     | TASortsDescription String
-                     | TAFunsDescription String
-                     | TADefinition String
-                     | TAValues String
-                     | TANotes String
+                     | TASortsDescription StringLiteral
+                     | TAFunsDescription StringLiteral
+                     | TADefinition StringLiteral
+                     | TAValues StringLiteral
+                     | TANotes StringLiteral
                      | TAAttr Attribute
   deriving (Eq, Show)
 
@@ -131,10 +131,10 @@ data TheoryDecl = TheoryDecl Symbol (NonEmpty TheoryAttribute)
 -- * Logic Declarations (Sec 3.8)
 
 data LogicAttribute = LATheories (NonEmpty Symbol)
-                    | LALanguage String
-                    | LAExtensions String
-                    | LAValues String
-                    | LANotes String
+                    | LALanguage StringLiteral
+                    | LAExtensions StringLiteral
+                    | LAValues StringLiteral
+                    | LANotes StringLiteral
                     | LAAttr Attribute
   deriving (Eq, Show)
 

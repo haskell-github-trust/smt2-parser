@@ -113,7 +113,7 @@ spaces1 = skipMany1 space
 betweenBrackets :: GenStrParser st a -> GenStrParser st a
 betweenBrackets = try . between (char '(' <* spaces) (spaces *> char ')')
 
--- | many p, separated by spaces1, possibly has a trailing spaces1
+-- | many p, separated by spaces, possibly has a trailing spaces1
 sepSpace :: GenStrParser st a -> GenStrParser st [a]
 sepSpace p = sepEndBy p spaces1
 
@@ -135,15 +135,20 @@ tryStr1 s = try $ string s *> spaces1 $> ()
 tryAttr :: String -> GenStrParser st ()
 tryAttr s = tryStr (':':s)
 
+-- | like tryStr1, but prefix with a ':'
+tryAttr1 :: String -> GenStrParser st ()
+tryAttr1 s = tryStr1 (':':s)
+
 
 -- * S-expressions (Sec. 3.2)
 
 slist :: GenStrParser st SList
 slist = betweenBrackets . sepSpace $ sexpr
 
+-- | a constant must be followed by a space to delimit the end
 specConstant :: GenStrParser st SpecConstant
-specConstant =  SCNumeral <$> try numeral
-            <|> SCDecimal <$> try decimal
+specConstant =  SCDecimal <$> try decimal  -- ^ numeral can be a prefix
+            <|> SCNumeral <$> try numeral
             <|> SCHexadecimal <$> try hexadecimal
             <|> SCBinary <$> try binary
             <|> SCString <$> try stringLiteral
@@ -255,7 +260,7 @@ term =  TermSpecConstant <$> try specConstant
 sortSymbolDecl :: GenStrParser st SortSymbolDecl
 sortSymbolDecl = betweenBrackets $ do
   i <- identifier <* spaces1
-  n <- numeral <* spaces1
+  n <- numeral <* spaces -- if no attribute, don't need space
   SortSymbolDecl i n <$> sepSpace attribute
 
 metaSpecConstant :: GenStrParser st MetaSpecConstant
@@ -320,7 +325,12 @@ theoryDecl = betweenBrackets $ do
 -- * Logic Declarations (Sec 3.8)
 
 logicAttribute :: GenStrParser st LogicAttribute
-logicAttribute = tryAttr "theories" *> (LATheories <$> sepSpace1 symbol)
+logicAttribute =  tryAttr "theories" *> betweenBrackets (LATheories <$> sepSpace1 symbol)
+              <|> tryAttr "language" *> (LALanguage <$> stringLiteral)
+              <|> tryAttr "extensions" *> (LAExtensions <$> stringLiteral)
+              <|> tryAttr "values" *> (LAValues <$> stringLiteral)
+              <|> tryAttr "notes" *> (LANotes <$> stringLiteral)
+              <|> LAAttr <$> attribute
 
 logic :: GenStrParser st Logic
 logic = betweenBrackets $ do

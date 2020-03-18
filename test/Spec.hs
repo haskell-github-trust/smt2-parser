@@ -1,4 +1,5 @@
 import           Language.SMT2.Parser
+import           Language.SMT2.Syntax
 import           Test.HUnit
 
 -- * Parsing tests
@@ -13,11 +14,18 @@ pe p s expected = TestCase $ case parseStringEof p s of
                     Right actual -> expected @=? actual
                     Left _ -> assertFailure $ "should succeed for " <> s
 
--- | parse and test a string, expecting a parser error (@Left _@)
+parseTest :: (String -> Assertion) -> (String -> Assertion) -> GenStrParser () a -> String -> Test
+parseTest success failure p s = TestCase $ case parseStringEof p s of
+                                             Left _  -> failure s
+                                             Right _ -> success s
+
+-- | parse and success
+ps :: GenStrParser () a -> String -> Test
+ps = parseTest (\_ -> pure ()) (\s -> assertFailure $ "should succeed for " <> s)
+
+-- | parse and failure
 pf :: GenStrParser () a -> String -> Test
-pf p s = TestCase $ case parseStringEof p s of
-           Left _  -> pure ()
-           Right _ -> assertFailure $ "should fail for " <> s
+pf = parseTest (\s -> assertFailure $ "should fail for " <> s) (\_ -> pure ())
 
 -- | Sec 3.1
 lexiconTest = TestList [ pN "0" ("0" :: Numeral)
@@ -96,6 +104,7 @@ lexiconTest = TestList [ pN "0" ("0" :: Numeral)
     pR = pe reservedWord
     pS = pe symbol
     pK = pe keyword
+
 
 
 specTest = TestList [ lexiconTest ]
