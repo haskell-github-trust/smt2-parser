@@ -14,18 +14,26 @@ pe p s expected = TestCase $ case parseStringEof p s of
                     Right actual -> expected @=? actual
                     Left _ -> assertFailure $ "should succeed for " <> s
 
-parseTest :: (String -> Assertion) -> (String -> Assertion) -> GenStrParser () a -> String -> Test
-parseTest success failure p s = TestCase $ case parseStringEof p s of
-                                             Left _  -> failure s
-                                             Right _ -> success s
+parseTest :: (String -> Assertion) -> (String -> Assertion) -> GenStrParser () a -> String -> Assertion
+parseTest success failure p s = case parseStringEof p s of
+                                  Left _  -> failure s
+                                  Right _ -> success s
+
+-- | parse and success, an assertion
+pas :: GenStrParser () a -> String -> Assertion
+pas = parseTest (\_ -> pure ()) (\s -> assertFailure $ "should succeed for " <> s)
+
+-- | parse and failure, an assertion
+paf :: GenStrParser () a -> String -> Assertion
+paf = parseTest (\s -> assertFailure $ "should fail for " <> s) (\_ -> pure ())
 
 -- | parse and success
 ps :: GenStrParser () a -> String -> Test
-ps = parseTest (\_ -> pure ()) (\s -> assertFailure $ "should succeed for " <> s)
+ps p s = TestCase $ pas p s
 
 -- | parse and failure
 pf :: GenStrParser () a -> String -> Test
-pf = parseTest (\s -> assertFailure $ "should fail for " <> s) (\_ -> pure ())
+pf p s = TestCase $ paf p s
 
 -- | Sec 3.1
 lexiconTest = TestList [ pN "0" ("0" :: Numeral)
@@ -105,9 +113,13 @@ lexiconTest = TestList [ pN "0" ("0" :: Numeral)
     pS = pe symbol
     pK = pe keyword
 
+-- | test the theory declaration from Fig. 3.1 (http://smtlib.cs.uiowa.edu/theories-Core.shtml)
+theoryCoreTest = TestCase $ do
+  s <- readFile "test/Theories-Core.smt2"
+  pas (strip theoryDecl) s
 
 
-specTest = TestList [ lexiconTest ]
+specTest = TestList [ lexiconTest, theoryCoreTest ]
 
 hornTest = TestCase $ pure ()
 

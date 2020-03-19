@@ -23,6 +23,47 @@ parseString p = parse p ""
 parseStringEof :: Parser a -> String -> Either ParseError a
 parseStringEof p = parse (p <* eof) ""
 
+-- * Utils
+--
+-- commonly used combinators
+
+-- | skip one or more spaces
+spaces1 :: GenStrParser st ()
+spaces1 = skipMany1 space
+
+-- | between round brackets
+betweenBrackets :: GenStrParser st a -> GenStrParser st a
+betweenBrackets = try . between (char '(' <* spaces) (spaces *> char ')')
+
+-- | many p, separated by spaces, possibly has a trailing spaces1
+sepSpace :: GenStrParser st a -> GenStrParser st [a]
+sepSpace p = sepEndBy p spaces1
+
+-- | many1 p, separated by spaces1, possibly has a trailing spaces1
+sepSpace1 :: GenStrParser st a -> GenStrParser st (NonEmpty a)
+sepSpace1 p = fromList <$> sepEndBy1 p spaces1
+
+-- | match an string, ignore spaces after,
+-- input is not consumed if failed
+tryStr :: String -> GenStrParser st ()
+tryStr s = try $ string s *> spaces $> ()
+
+-- | match an string, must have one or more spaces after, ignore them,
+-- input is not consumed if failed
+tryStr1 :: String -> GenStrParser st ()
+tryStr1 s = try $ string s *> spaces1 $> ()
+
+-- | like tryStr, but prefix with a ':'
+tryAttr :: String -> GenStrParser st ()
+tryAttr s = tryStr (':':s)
+
+-- | like tryStr1, but prefix with a ':'
+tryAttr1 :: String -> GenStrParser st ()
+tryAttr1 s = tryStr1 (':':s)
+
+-- | strip away the leading and trailing spaces
+strip :: GenStrParser st a -> GenStrParser st a
+strip p = spaces *> p <* spaces
 
 -- * Lexicons (Sec. 3.1)
 --
@@ -100,44 +141,6 @@ keyword :: GenStrParser st Keyword
 keyword = do char ':'
              many1 (alphaNum <|> nameChar)
 
-
--- * Utils
---
--- commonly used combinators
-
--- | skip one or more spaces
-spaces1 :: GenStrParser st ()
-spaces1 = skipMany1 space
-
--- | between round brackets
-betweenBrackets :: GenStrParser st a -> GenStrParser st a
-betweenBrackets = try . between (char '(' <* spaces) (spaces *> char ')')
-
--- | many p, separated by spaces, possibly has a trailing spaces1
-sepSpace :: GenStrParser st a -> GenStrParser st [a]
-sepSpace p = sepEndBy p spaces1
-
--- | many1 p, separated by spaces1, possibly has a trailing spaces1
-sepSpace1 :: GenStrParser st a -> GenStrParser st (NonEmpty a)
-sepSpace1 p = fromList <$> sepEndBy1 p spaces1
-
--- | match an string, ignore spaces after,
--- input is not consumed if failed
-tryStr :: String -> GenStrParser st ()
-tryStr s = try $ string s *> spaces $> ()
-
--- | match an string, must have one or more spaces after, ignore them,
--- input is not consumed if failed
-tryStr1 :: String -> GenStrParser st ()
-tryStr1 s = try $ string s *> spaces1 $> ()
-
--- | like tryStr, but prefix with a ':'
-tryAttr :: String -> GenStrParser st ()
-tryAttr s = tryStr (':':s)
-
--- | like tryStr1, but prefix with a ':'
-tryAttr1 :: String -> GenStrParser st ()
-tryAttr1 s = tryStr1 (':':s)
 
 
 -- * S-expressions (Sec. 3.2)
