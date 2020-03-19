@@ -96,8 +96,8 @@ stringLiteral = do char '"'
                    char '"'
                    return str
   where
-    nonEscaped = noneOf "\\\""
-    escaped = char '\\' >> (char '\\' <|> char '"' <|> pure '\\') -- try to escape, if can't, preserve the backslash
+    nonEscaped = noneOf "\""
+    escaped = try (string "\"\"") $> '"'
 
 reservedWords :: [String]
 reservedWords = [ -- General
@@ -168,6 +168,10 @@ sexpr =  SEList <$> try slist
 
 -- * Identifiers (Sec 3.3)
 
+index :: GenStrParser st Index
+index =  IxNumeral <$> numeral
+     <|> IxSymbol <$> symbol
+
 identifier :: GenStrParser st Identifier
 identifier =  IdSymbol <$> symbol -- ^ symbol cannot start with (, so no ambiguity
           <|> idIndexed
@@ -176,7 +180,7 @@ identifier =  IdSymbol <$> symbol -- ^ symbol cannot start with (, so no ambigui
     idIndexed = betweenBrackets $ do
       char '_' <* spaces1
       s <- symbol <* spaces1
-      IdIndexed s <$> sepSpace1 numeral
+      IdIndexed s <$> sepSpace1 index
 
 
 -- * Attributes (Sec. 3.4)
@@ -225,6 +229,20 @@ varBinding = betweenBrackets $ VarBinding <$> symbol <* spaces1 <*> term
 sortedVar :: GenStrParser st SortedVar
 sortedVar = betweenBrackets $ SortedVar <$> symbol <* spaces1 <*> sort
 
+matchPattern :: GenStrParser st MatchPattern
+matchPattern =  MPVariable <$> symbol
+       <|> mPConstructor
+       <?> "pattern"
+  where
+    mPConstructor = betweenBrackets $ do
+      c <- symbol <* spaces1
+      MPConstructor c <$> sepSpace1 symbol
+
+matchCase :: GenStrParser st MatchCase
+matchCase = betweenBrackets $ do
+  p <- matchPattern <* spaces1
+  MatchCase p <$> term
+
 term :: GenStrParser st Term
 term =  TermSpecConstant <$> try specConstant
     <|> TermQualIdentifier <$> try qualIdentifier
@@ -232,6 +250,7 @@ term =  TermSpecConstant <$> try specConstant
     <|> try binding
     <|> try quantifyForall
     <|> try quantifyExists
+    <|> try match
     <|> try annotation
     <?> "term"
   where
@@ -252,6 +271,10 @@ term =  TermSpecConstant <$> try specConstant
       svs <- betweenBrackets $ sepSpace1 sortedVar
       spaces
       TermExists svs <$> term
+    match = betweenBrackets $ do
+      tryStr "match"
+      t <- term <* spaces1
+      TermMatch t <$> betweenBrackets (sepSpace1 matchCase)
     annotation = betweenBrackets $ do
       char '!' <* spaces1
       t <- term <* spaces1

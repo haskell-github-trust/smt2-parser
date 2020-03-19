@@ -1,3 +1,4 @@
+import           Data.List.NonEmpty   (fromList)
 import           Language.SMT2.Parser
 import           Language.SMT2.Syntax
 import           Test.HUnit
@@ -59,11 +60,10 @@ lexiconTest = TestList [ pN "0" ("0" :: Numeral)
                        , pB "#b001" ("001" :: Binary)
                        , pB "#b101011" ("101011" :: Binary)
                        , pf binary "#b02"
-                       , pL "\"\"" ("" :: StringLiteral)
                        , pL "\"this is a string literal\"" ("this is a string literal" :: StringLiteral)
-                       , pL "\"one\\n two\"" ("one\\n two" :: StringLiteral) -- ^ non-escape
-                       , pL "\"She said: \\\"Hello!\\\"\"" ("She said: \"Hello!\"" :: StringLiteral)
-                       , pL "\"Here is a backslash: \\\\\"" ("Here is a backslash: \\" :: StringLiteral)
+                       , pL "\"\"" ("" :: StringLiteral)
+                       , pL "\"She said: \"\"Bye bye\"\" and left.\"" ("She said: \"Bye bye\" and left." :: StringLiteral)
+                       , pL "\"this is a string literal\nwith a line break in it\"" ("this is a string literal\nwith a line break in it" :: StringLiteral)
                        , pR "par" ("par" :: ReservedWord)
                        , pR "NUMERAL" ("NUMERAL" :: ReservedWord)
                        , pR "_" ("_" :: ReservedWord)
@@ -91,7 +91,9 @@ lexiconTest = TestList [ pN "0" ("0" :: Numeral)
                        , pS "+34" ("+34" :: Symbol)
                        , pS "-32" ("-32" :: Symbol)
                        , pS "|this is a single quoted symbol|" ("this is a single quoted symbol" :: Symbol)
+                       , pS "|so is\nthis one|" ("so is\nthis one" :: Symbol)
                        , pS "||" ("" :: Symbol)
+                       , pS "|\" can occur too|" ("\" can occur too" :: Symbol)
                        , pS "|af kljˆ∗(0asfsfe2(&∗)&(#ˆ$>>>?”’]]984|" ("af kljˆ∗(0asfsfe2(&∗)&(#ˆ$>>>?”’]]984" :: Symbol)
                        , pS "|abc|" ("abc" :: Symbol) -- ^ quoted simple symbol is the same
                        , pS "abc" ("abc" :: Symbol)
@@ -102,6 +104,41 @@ lexiconTest = TestList [ pN "0" ("0" :: Numeral)
                        , pK ":56" ("56" :: Keyword)
                        , pK ":->" ("->" :: Keyword)
                        , pK ":~!@$%^&*_-+=<>.?/" ("~!@$%^&*_-+=<>.?/" :: Keyword)
+                       , pI "plus" (IdSymbol "plus")
+                       , pI "+" (IdSymbol "+")
+                       , pI "<=" (IdSymbol "<=")
+                       , pI "Real" (IdSymbol "Real")
+                       , pI "|John Brown|" (IdSymbol "John Brown")
+                       , pI "(_ vector-add 4 5)" (IdIndexed ("vector-add" :: Symbol) (fromList [IxNumeral "4", IxNumeral "5"]))
+                       , pI "(_ BitVec 32)" (IdIndexed ("BitVec" :: Symbol) (fromList [IxNumeral "32"]))
+                       , pI "(_ move up)" (IdIndexed ("move" :: Symbol) (fromList [IxSymbol "up"]))
+                       , pI "(_ move down)" (IdIndexed ("move" :: Symbol) (fromList [IxSymbol "down"]))
+                       , pI "(_ move left)" (IdIndexed ("move" :: Symbol) (fromList [IxSymbol "left"]))
+                       , pI "(_ move right)" (IdIndexed ("move" :: Symbol) (fromList [IxSymbol "right"]))
+                       , pA ":left-assoc" (AttrKey ("left-assoc" :: Keyword))
+                       , pA ":status unsat" (AttrKeyValue ("status" :: Keyword) (AttrValSymbol ("unsat" :: Symbol)))
+                       , pA ":my_attribute (humpty dumpty)" (AttrKeyValue
+                                                              ("my_attribute" :: Keyword)
+                                                              (AttrValSList [ SESymbol "humpty"
+                                                                            , SESymbol "dumpty"]))
+                       , pA ":authors \"Jack and Jill\"" (AttrKeyValue
+                                                           ("authors" :: Keyword)
+                                                           (AttrValSpecConstant . SCString $ "Jack and Jill"))
+                       , pT "Int" (SortSymbol . IdSymbol $ "Int")
+                       , pT "Bool" (SortSymbol . IdSymbol $ "Bool")
+                       , pT "(_ BitVec 3)" (SortSymbol . IdIndexed "BitVec" $ fromList [IxNumeral "3"])
+                       , pT "(List (Array Int Real))" (SortParameter
+                                                        (IdSymbol "List")
+                                                        (fromList [SortParameter
+                                                                    (IdSymbol "Array")
+                                                                    (fromList [ SortSymbol . IdSymbol $ "Int"
+                                                                              , SortSymbol . IdSymbol $ "Real"])]))
+                       , pT "((_ FixedSizeList 4) Real)" (SortParameter
+                                                           (IdIndexed "FixedSizeList" (fromList [IxNumeral "4"]))
+                                                           (fromList [SortSymbol . IdSymbol $ "Real"]))
+                       , pT "(Set (_ Bitvec 3))" (SortParameter
+                                                   (IdSymbol "Set")
+                                                   (fromList [SortSymbol . IdIndexed "Bitvec" $ fromList [IxNumeral "3"]]))
                        ]
   where
     pN = pe numeral
@@ -112,6 +149,9 @@ lexiconTest = TestList [ pN "0" ("0" :: Numeral)
     pR = pe reservedWord
     pS = pe symbol
     pK = pe keyword
+    pI = pe identifier
+    pA = pe attribute
+    pT = pe sort
 
 -- | test the theory declaration from Fig. 3.1 (http://smtlib.cs.uiowa.edu/theories-Core.shtml)
 theoryCoreTest = TestCase $ do

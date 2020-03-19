@@ -47,8 +47,12 @@ type SList = [SExpr]
 
 -- * Identifiers (Sec 3.3)
 
+data Index = IxNumeral Numeral
+           | IxSymbol Symbol
+  deriving (Eq, Show)
+
 data Identifier = IdSymbol Symbol
-                | IdIndexed Symbol (NonEmpty Numeral)
+                | IdIndexed Symbol (NonEmpty Index)
   deriving (Eq, Show)
 
 
@@ -83,12 +87,20 @@ data VarBinding = VarBinding Symbol Term
 data SortedVar = SortedVar Symbol Sort
   deriving (Eq, Show)
 
+data MatchPattern = MPVariable Symbol
+                  | MPConstructor Symbol (NonEmpty Symbol)
+  deriving (Eq, Show)
+
+data MatchCase = MatchCase MatchPattern Term
+  deriving (Eq, Show)
+
 data Term = TermSpecConstant SpecConstant
           | TermQualIdentifier QualIdentifier
           | TermApplication QualIdentifier (NonEmpty Term)
           | TermLet (NonEmpty VarBinding) Term
           | TermForall (NonEmpty SortedVar) Term
           | TermExists (NonEmpty SortedVar) Term
+          | TermMatch Term (NonEmpty MatchCase)
           | TermAnnotation Term (NonEmpty Attribute)
             -- ^ only attributes, do not support e.g. @:pattern terms@
   deriving (Eq, Show)
