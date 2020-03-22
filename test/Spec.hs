@@ -155,7 +155,7 @@ lexiconTest = TestList [ pN "0" ("0" :: Numeral)
 
 -- | test the theory declaration from Fig. 3.1 (http://smtlib.cs.uiowa.edu/theories-Core.shtml)
 theoryCoreTest = TestCase $ do
-  s <- readFile "test/Theories-Core.smt2"
+  s <- readFile "test/files/Theories-Core.smt2"
   pas (strip theoryDecl) s
 
 

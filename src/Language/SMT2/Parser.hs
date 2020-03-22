@@ -9,6 +9,7 @@ module Language.SMT2.Parser where
 
 import           Data.Char              (toLower)
 import           Data.Functor           (($>))
+import           Data.List              (span)
 import           Data.List.NonEmpty     (NonEmpty, fromList)
 import           Language.SMT2.Syntax
 import           Text.Parsec            (ParseError, eof, parse, try)
@@ -64,6 +65,29 @@ tryAttr1 s = tryStr1 (':':s)
 -- | strip away the leading and trailing spaces
 strip :: GenStrParser st a -> GenStrParser st a
 strip p = spaces *> p <* spaces
+
+-- | remove comments
+removeComment :: String -> String
+removeComment = rc ""
+  where
+    rc acc "" = acc
+    rc acc (c:cs) = let f = case c of
+                              '"' -> capture "\"" ('"':)
+                              '|' -> capture "|" ('|':)
+                              ';' -> capture "\n\r" $ const " "
+                              x   -> nextPos x
+                     in f acc cs
+    capture stops after acc cs = let (captured, rest) = splitElem stops cs
+                                  in rc (acc <> after captured) rest
+    -- 1. if the string is ill-formed, ignore;
+    --    let the parser catch, for a better format
+    -- 2. the double " escaping in a string literal is the same as capturing twice
+    -- 3. for comments ended with \n\r or \r\n, the second is left
+    splitElem stops cs = let notStop = not . (`elem` stops)
+                          in span notStop cs
+    nextPos x acc = rc (x `snoc` acc)
+    snoc c cs = cs <> [c]
+
 
 -- * Lexicons (Sec. 3.1)
 --
