@@ -158,6 +158,14 @@ theoryCoreTest = TestCase $ do
   s <- readFile "test/files/Theories-Core.smt2"
   pas (strip theoryDecl) s
 
+-- | remove the comments
+commentTest = TestList [ onlyComment, commentWithString, commentWithSymbol, commentStringInSymbol, commentSymbolInString ]
+  where
+    onlyComment = removeComment "; this is a comment\n;so is this\r" ~?= " \n \r"
+    commentWithString = removeComment "; this is a comment,\n\"but this isn't, even after ; it won't be\";however\n" ~?= " \n\"but this isn't, even after ; it won't be\" \n"
+    commentWithSymbol = removeComment "|;here we go;\n|;not so fast\n\r" ~?= "|;here we go;\n| \n\r"
+    commentStringInSymbol = removeComment "|;wait\n I speak \"symbolism;&others\n\";next|;finally\n" ~?= "|;wait\n I speak \"symbolism;&others\n\";next| \n"
+    commentSymbolInString = removeComment "\"A |quoted symbol ;example\n| ;actually no\r\n\";unless\r" ~?= "\"A |quoted symbol ;example\n| ;actually no\r\n\" \r"
 
 specTest = TestList [ lexiconTest, theoryCoreTest ]
 
@@ -165,9 +173,12 @@ hornTest = TestCase $ pure ()
 
 disjuctionTest = TestCase $ pure ()
 
+extraTest = TestList [ commentTest ]
+
 tests = TestList [ TestLabel "spec" specTest
                  , TestLabel "horn" hornTest
                  , TestLabel "disjuction" disjuctionTest
+                 , TestLabel "extra" extraTest
                  ]
 
 main :: IO ()

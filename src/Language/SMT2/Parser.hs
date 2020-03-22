@@ -9,7 +9,6 @@ module Language.SMT2.Parser where
 
 import           Data.Char              (toLower)
 import           Data.Functor           (($>))
-import           Data.List              (span)
 import           Data.List.NonEmpty     (NonEmpty, fromList)
 import           Language.SMT2.Syntax
 import           Text.Parsec            (ParseError, eof, parse, try)
@@ -77,14 +76,14 @@ removeComment = rc ""
                               ';' -> capture "\n\r" $ const " "
                               x   -> nextPos x
                      in f acc cs
-    capture stops after acc cs = let (captured, rest) = splitElem stops cs
-                                  in rc (acc <> after captured) rest
+    capture stops after acc cs = let (captured, rest) = break (`elem` stops) cs
+                                  in case rest of
+                                       [] -> acc <> after captured
+                                       (s:ss) -> rc (acc <> after captured <> [s]) ss
     -- 1. if the string is ill-formed, ignore;
     --    let the parser catch, for a better format
     -- 2. the double " escaping in a string literal is the same as capturing twice
     -- 3. for comments ended with \n\r or \r\n, the second is left
-    splitElem stops cs = let notStop = not . (`elem` stops)
-                          in span notStop cs
     nextPos x acc = rc (x `snoc` acc)
     snoc c cs = cs <> [c]
 
