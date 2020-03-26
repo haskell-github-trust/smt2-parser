@@ -1,3 +1,4 @@
+import           Data.List            (intercalate)
 import           Data.List.NonEmpty   (fromList)
 import           Language.SMT2.Parser
 import           Language.SMT2.Syntax
@@ -35,6 +36,13 @@ ps p s = TestCase $ pas p s
 -- | parse and failure
 pf :: GenStrParser () a -> String -> Test
 pf p s = TestCase $ paf p s
+
+-- | parse file success
+pfs :: GenStrParser () a -> String -> Test
+pfs p f = TestCase $ do
+  s <- readFile f
+  pas (strip p) (removeComment s)
+
 
 -- | Sec 3.1
 lexiconTest = TestList [ pN "0" ("0" :: Numeral)
@@ -104,41 +112,6 @@ lexiconTest = TestList [ pN "0" ("0" :: Numeral)
                        , pK ":56" ("56" :: Keyword)
                        , pK ":->" ("->" :: Keyword)
                        , pK ":~!@$%^&*_-+=<>.?/" ("~!@$%^&*_-+=<>.?/" :: Keyword)
-                       , pI "plus" (IdSymbol "plus")
-                       , pI "+" (IdSymbol "+")
-                       , pI "<=" (IdSymbol "<=")
-                       , pI "Real" (IdSymbol "Real")
-                       , pI "|John Brown|" (IdSymbol "John Brown")
-                       , pI "(_ vector-add 4 5)" (IdIndexed ("vector-add" :: Symbol) (fromList [IxNumeral "4", IxNumeral "5"]))
-                       , pI "(_ BitVec 32)" (IdIndexed ("BitVec" :: Symbol) (fromList [IxNumeral "32"]))
-                       , pI "(_ move up)" (IdIndexed ("move" :: Symbol) (fromList [IxSymbol "up"]))
-                       , pI "(_ move down)" (IdIndexed ("move" :: Symbol) (fromList [IxSymbol "down"]))
-                       , pI "(_ move left)" (IdIndexed ("move" :: Symbol) (fromList [IxSymbol "left"]))
-                       , pI "(_ move right)" (IdIndexed ("move" :: Symbol) (fromList [IxSymbol "right"]))
-                       , pA ":left-assoc" (AttrKey ("left-assoc" :: Keyword))
-                       , pA ":status unsat" (AttrKeyValue ("status" :: Keyword) (AttrValSymbol ("unsat" :: Symbol)))
-                       , pA ":my_attribute (humpty dumpty)" (AttrKeyValue
-                                                              ("my_attribute" :: Keyword)
-                                                              (AttrValSList [ SESymbol "humpty"
-                                                                            , SESymbol "dumpty"]))
-                       , pA ":authors \"Jack and Jill\"" (AttrKeyValue
-                                                           ("authors" :: Keyword)
-                                                           (AttrValSpecConstant . SCString $ "Jack and Jill"))
-                       , pT "Int" (SortSymbol . IdSymbol $ "Int")
-                       , pT "Bool" (SortSymbol . IdSymbol $ "Bool")
-                       , pT "(_ BitVec 3)" (SortSymbol . IdIndexed "BitVec" $ fromList [IxNumeral "3"])
-                       , pT "(List (Array Int Real))" (SortParameter
-                                                        (IdSymbol "List")
-                                                        (fromList [SortParameter
-                                                                    (IdSymbol "Array")
-                                                                    (fromList [ SortSymbol . IdSymbol $ "Int"
-                                                                              , SortSymbol . IdSymbol $ "Real"])]))
-                       , pT "((_ FixedSizeList 4) Real)" (SortParameter
-                                                           (IdIndexed "FixedSizeList" (fromList [IxNumeral "4"]))
-                                                           (fromList [SortSymbol . IdSymbol $ "Real"]))
-                       , pT "(Set (_ Bitvec 3))" (SortParameter
-                                                   (IdSymbol "Set")
-                                                   (fromList [SortSymbol . IdIndexed "Bitvec" $ fromList [IxNumeral "3"]]))
                        ]
   where
     pN = pe numeral
@@ -149,14 +122,88 @@ lexiconTest = TestList [ pN "0" ("0" :: Numeral)
     pR = pe reservedWord
     pS = pe symbol
     pK = pe keyword
+
+syntaxTest = TestList [ pI "plus" (IdSymbol "plus")
+                      , pI "+" (IdSymbol "+")
+                      , pI "<=" (IdSymbol "<=")
+                      , pI "Real" (IdSymbol "Real")
+                      , pI "|John Brown|" (IdSymbol "John Brown")
+                      , pI "(_ vector-add 4 5)" (IdIndexed ("vector-add" :: Symbol) (fromList [IxNumeral "4", IxNumeral "5"]))
+                      , pI "(_ BitVec 32)" (IdIndexed ("BitVec" :: Symbol) (fromList [IxNumeral "32"]))
+                      , pI "(_ move up)" (IdIndexed ("move" :: Symbol) (fromList [IxSymbol "up"]))
+                      , pI "(_ move down)" (IdIndexed ("move" :: Symbol) (fromList [IxSymbol "down"]))
+                      , pI "(_ move left)" (IdIndexed ("move" :: Symbol) (fromList [IxSymbol "left"]))
+                      , pI "(_ move right)" (IdIndexed ("move" :: Symbol) (fromList [IxSymbol "right"]))
+                      , pA ":left-assoc" (AttrKey ("left-assoc" :: Keyword))
+                      , pA ":status unsat" (AttrKeyValue ("status" :: Keyword) (AttrValSymbol ("unsat" :: Symbol)))
+                      , pA ":my_attribute (humpty dumpty)" (AttrKeyValue
+                                                             ("my_attribute" :: Keyword)
+                                                             (AttrValSList [ SESymbol "humpty"
+                                                                           , SESymbol "dumpty"]))
+                      , pA ":authors \"Jack and Jill\"" (AttrKeyValue
+                                                          ("authors" :: Keyword)
+                                                          (AttrValSpecConstant . SCString $ "Jack and Jill"))
+                      , pT "Int" (SortSymbol . IdSymbol $ "Int")
+                      , pT "Bool" (SortSymbol . IdSymbol $ "Bool")
+                      , pT "(_ BitVec 3)" (SortSymbol . IdIndexed "BitVec" $ fromList [IxNumeral "3"])
+                      , pT "(List (Array Int Real))" (SortParameter
+                                                       (IdSymbol "List")
+                                                       (fromList [SortParameter
+                                                                   (IdSymbol "Array")
+                                                                   (fromList [ SortSymbol . IdSymbol $ "Int"
+                                                                             , SortSymbol . IdSymbol $ "Real"])]))
+                      , pT "((_ FixedSizeList 4) Real)" (SortParameter
+                                                          (IdIndexed "FixedSizeList" (fromList [IxNumeral "4"]))
+                                                          (fromList [SortSymbol . IdSymbol $ "Real"]))
+                      , pT "(Set (_ Bitvec 3))" (SortParameter
+                                                  (IdSymbol "Set")
+                                                  (fromList [SortSymbol . IdIndexed "Bitvec" $ fromList [IxNumeral "3"]]))
+                      , ps term $ mkTerm [ "(forall ((x (List Int)) (y (List Int)))"
+                                         , "(= (append x y)"
+                                         , "(ite (= x (as nil (List Int)))"
+                                         , "y"
+                                         , "(let ((h (head x)) (t (tail x)))"
+                                         , "(insert h (append t y))))))"
+                                         ]
+                      , ps term $ mkTerm [ "(forall ((l1 (List Int)) (l2 (List Int)))"
+                                         , "(= (append l1 l2)"
+                                         , "(match l1 ("
+                                         , "(nil l2)"
+                                         , "((cons h t) (cons h (append t l2)))))))"
+                                         ] --  Axiom for list append: version 1
+                      , ps term $ mkTerm [ "(forall ((l1 (List Int)) (l2 (List Int)))"
+                                         , "(= (append l1 l2)"
+                                         , "(match l1 ("
+                                         , "((cons h t) (cons h (append t l2)))"
+                                         , "(_ l2)))))"
+                                         ] -- Axiom for list append: version 2
+                      , psP "(+ Real Real Real :left-assoc)"
+                      , psP "(and Bool Bool Bool :left-assoc)"
+                      , psP "(par (X) (insert X (List X) (List X) :right -assoc))"
+                      , psP "(< Real Real Bool :chainable)"
+                      , psP "(equiv Elem Elem Bool :chainable)"
+                      , psP "(par (X) (Disjoint (Set X) (Set X) Bool :pairwise))"
+                      , psP "(par (X) (distinct X X Bool :pairwise))"
+                      ]
+  where
     pI = pe identifier
     pA = pe attribute
     pT = pe sort
+    psP = ps parFunSymbolDecl
+    mkTerm = intercalate "\n"
 
 -- | test the theory declaration from Fig. 3.1 (http://smtlib.cs.uiowa.edu/theories-Core.shtml)
-theoryCoreTest = TestCase $ do
-  s <- readFile "test/files/Theories-Core.smt2"
-  pas (strip theoryDecl) s
+theoryCoreTest = pfs theoryDecl "test/files/Theories-Core.smt2"
+
+logicLIATest = pfs logic "test/files/Logic-LIA.smt2"
+
+specTest = TestList [ lexiconTest, syntaxTest, theoryCoreTest, logicLIATest ]
+
+hornTest = TestList [ pfs script "test/files/sum.smt2"
+                    , pfs script "test/files/buildheap.nts.smt2"
+                    ]
+
+disjuctionTest = pfs script "test/files/disjuction-head.smt2"
 
 -- | remove the comments
 commentTest = TestList [ onlyComment, commentWithString, commentWithSymbol, commentStringInSymbol, commentSymbolInString ]
@@ -166,12 +213,6 @@ commentTest = TestList [ onlyComment, commentWithString, commentWithSymbol, comm
     commentWithSymbol = removeComment "|;here we go;\n|;not so fast\n\r" ~?= "|;here we go;\n| \n\r"
     commentStringInSymbol = removeComment "|;wait\n I speak \"symbolism;&others\n\";next|;finally\n" ~?= "|;wait\n I speak \"symbolism;&others\n\";next| \n"
     commentSymbolInString = removeComment "\"A |quoted symbol ;example\n| ;actually no\r\n\";unless\r" ~?= "\"A |quoted symbol ;example\n| ;actually no\r\n\" \r"
-
-specTest = TestList [ lexiconTest, theoryCoreTest ]
-
-hornTest = TestCase $ pure ()
-
-disjuctionTest = TestCase $ pure ()
 
 extraTest = TestList [ commentTest ]
 
@@ -185,3 +226,4 @@ main :: IO ()
 main = do
   counts <- runTestTT tests
   print counts
+

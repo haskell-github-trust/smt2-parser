@@ -156,65 +156,99 @@ data Logic = Logic Symbol (NonEmpty LogicAttribute)
 
 -- * Scripts (Sec 3.9)
 
-data Command = SetLogic Symbol
-             | SetOption ScriptOption
-             | SetInfo Attribute
-             | DeclareSort Symbol Numeral
-             | DefineSort Symbol [Symbol] Sort
-             | DeclareFun Symbol [Sort] Sort
-             | DefineFun Symbol [SortedVar] Sort Term
-             | Push Numeral
-             | Pop Numeral
-             | Assert Term
-             | CheckSat
-             | GetAssertions
-             | GetProof
-             | GetUnsatCore
-             | GetValue (NonEmpty Term)
-             | GetAssignment
-             | GetOption Keyword
-             | GetInfo InfoFlag
-             | Exit
+data InfoFlag = AllStatistics | AssertionStackLevels | Authors
+              | ErrorBehavior | Name | ReasonUnknown
+              | Version | IFKeyword Keyword
   deriving (Eq, Show)
-
-type Script = [Command]
 
 data BValue = BTrue | BFalse
   deriving (Eq, Show)
 
-data ScriptOption = PrintSuccess BValue
-                  | ExpandDefinitions BValue
+data ScriptOption = DiagnosticOutputChannel StringLiteral
+                  | GlobalDeclarations BValue
                   | InteractiveMode BValue
-                  | ProduceProofs BValue
-                  | ProduceUnsatCores BValue
-                  | ProduceModels BValue
+                  | PrintSuccess BValue
+                  | ProduceAssertions BValue
                   | ProduceAssignments BValue
-                  | RegularOutputChannel StringLiteral
-                  | DiagnosticOutputChannel StringLiteral
+                  | ProduceModels BValue
+                  | ProduceProofs BValue
+                  | ProduceUnsatAssumptions BValue
+                  | ProduceUnsatCores BValue
                   | RandomSeed Numeral
+                  | RegularOutputChannel StringLiteral
+                  | ReproducibleResourceLimit Numeral
                   | Verbosity Numeral
                   | OptionAttr Attribute
   deriving (Eq, Show)
 
-data InfoFlag = ErrorBehavior | Name | Authours | Version
-              | Status | ReasonUnknown
-              | IFKeyword Keyword
-              | AllStatistics
+data SortDec = SortDec Symbol Numeral
   deriving (Eq, Show)
+
+data SelectorDec = SelectorDec Symbol Sort
+  deriving (Eq, Show)
+
+data ConstructorDec = ConstructorDec Symbol [SelectorDec]
+  deriving (Eq, Show)
+
+data DatatypeDec = DDNonparametric (NonEmpty ConstructorDec)
+                  | DDParametric (NonEmpty Symbol) (NonEmpty ConstructorDec)
+  deriving (Eq, Show)
+
+data FunctionDec = FunctionDec Symbol [SortedVar] Sort
+  deriving (Eq, Show)
+
+data FunctionDef = FunctionDef Symbol [SortedVar] Sort Term
+  deriving (Eq, Show)
+
+data PropLiteral = PLPositive Symbol
+                 | PLNegative Symbol
+  deriving (Eq, Show)
+
+data Command = Assert Term
+             | CheckSat
+             | CheckSatAssuming [PropLiteral]
+             | DeclareConst Symbol Sort
+             | DeclareDatatype Symbol DatatypeDec
+             | DeclareDatatypes (NonEmpty SortDec) (NonEmpty DatatypeDec) -- ^ same number
+             | DeclareFun Symbol [Sort] Sort
+             | DeclareSort Symbol Numeral
+             | DefineFun FunctionDef
+             | DefineFunRec FunctionDef
+             | DefineFunsRec (NonEmpty FunctionDec) (NonEmpty Term) -- ^ same number
+             | DefineSort Symbol [Symbol] Sort
+             | Echo StringLiteral
+             | Exit
+             | GetAssertions
+             | GetAssignment
+             | GetInfo InfoFlag
+             | GetModel
+             | GetOption Keyword
+             | GetProof
+             | GetUnsatAssumptions
+             | GetUnsatCore
+             | GetValue (NonEmpty Term)
+             | Pop Numeral
+             | Push Numeral
+             | Reset
+             | ResetAssertions
+             | SetInfo Attribute
+             | SetLogic Symbol
+             | SetOption ScriptOption
+  deriving (Eq, Show)
+
+type Script = [Command]
 
 -- ** Responses
-
-data GenRes success = ResUnsupported | ResSuccess success | ResError StringLiteral
-  deriving (Eq, Show)
-
-class ResParsable s where
-  resParser :: GenStrParser st s
 
 data ResErrorBehavior = ImmediateExit | ContinuedExecution
   deriving (Eq, Show)
 
-data ResReasonUnknown = Memout | Incomplete
+data ResReasonUnknown = Memout | Incomplete | ResReasonSExpr SExpr
   deriving (Eq, Show)
+
+data ResModel = RMDefineFun FunctionDef
+              | RMDefineFunRec FunctionDef
+              | RMDefineFunsRec (NonEmpty FunctionDec) (NonEmpty Term) -- ^ same number
 
 data ResStatus = Sat | Unsat | Unknown
   deriving (Eq, Show)
@@ -227,24 +261,37 @@ data InfoResponse = IRErrorBehaviour ResErrorBehavior
                   | IRAttr Attribute
   deriving (Eq, Show)
 
+type ValuationPair = (Term, Term)
+type TValuationPair = (Symbol, BValue)
+
 -- *** instances
 
-type GetInfoRes = GenRes (NonEmpty InfoResponse)
+type CheckSatRes = GeneralRes ResStatus
 
-type CheckSatRes = GenRes ResStatus
+type EchoRes = GeneralRes StringLiteral
 
-type GetAssertionsRes = GenRes [Term]
+type GetAssertionsRes = GeneralRes [Term]
 
-type Proof = SExpr
-type GetProofRes = GenRes Proof
+type GetAssignmentRes = GeneralRes [TValuationPair]
 
-type GetUnsatCoreRes = GenRes [Symbol]
+type GetInfoRes = GeneralRes (NonEmpty InfoResponse)
 
-type ValuationPair = (Term, Term)
-type GetValueRes = GenRes (NonEmpty ValuationPair)
+type GetModelRes = GeneralRes ResModel
 
-type TValuationPair = (Symbol, BValue)
-type GetAssignmentRes = GenRes [TValuationPair]
+type GetOptionRes = GeneralRes AttributeValue
 
-type GetOptionRes = GenRes AttributeValue
+type GetProofRes = GeneralRes SExpr
+
+type GetUnsatAssumpRes = GeneralRes [Symbol]
+
+type GetUnsatCoreRes = GeneralRes [Symbol]
+
+type GetValueRes = GeneralRes (NonEmpty ValuationPair)
+
+data GeneralRes res = ResSuccess | ResSpecific res
+                    | ResUnsupported | ResError StringLiteral
+  deriving (Eq, Show)
+
+class SpecificSuccessRes s where
+  specificSuccessRes :: GenStrParser st s
 
