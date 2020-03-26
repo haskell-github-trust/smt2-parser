@@ -102,7 +102,6 @@ data Term = TermSpecConstant SpecConstant
           | TermExists (NonEmpty SortedVar) Term
           | TermMatch Term (NonEmpty MatchCase)
           | TermAnnotation Term (NonEmpty Attribute)
-            -- ^ only attributes, do not support e.g. @:pattern terms@
   deriving (Eq, Show)
 
 
@@ -116,15 +115,12 @@ data MetaSpecConstant = MSC_NUMERAL | MSC_DECIMAL | MSC_STRING
 
 data FunSymbolDecl = FunConstant SpecConstant Sort [Attribute]
                    | FunMeta MetaSpecConstant Sort [Attribute]
-                   | FunIdentifier Identifier (NonEmpty Sort) [Attribute]
-                     -- ^ potentially overloaded
+                   | FunIdentifier Identifier (NonEmpty Sort) [Attribute] -- ^ potentially overloaded
   deriving (Eq, Show)
 
-data ParFunSymbolDecl = NonPar FunSymbolDecl
-                        -- ^ non-parametric
-                      | Par (NonEmpty Symbol) Identifier (NonEmpty Sort) [Attribute]
+data ParFunSymbolDecl = NonPar FunSymbolDecl -- ^ non-parametric
+                      | Par (NonEmpty Symbol) Identifier (NonEmpty Sort) [Attribute] -- ^ parametric
   deriving (Eq, Show)
-                        -- ^ parametric
 
 data TheoryAttribute = TASorts (NonEmpty SortSymbolDecl)
                      | TAFuns (NonEmpty ParFunSymbolDecl)
@@ -155,31 +151,6 @@ data Logic = Logic Symbol (NonEmpty LogicAttribute)
 
 
 -- * Scripts (Sec 3.9)
-
-data InfoFlag = AllStatistics | AssertionStackLevels | Authors
-              | ErrorBehavior | Name | ReasonUnknown
-              | Version | IFKeyword Keyword
-  deriving (Eq, Show)
-
-data BValue = BTrue | BFalse
-  deriving (Eq, Show)
-
-data ScriptOption = DiagnosticOutputChannel StringLiteral
-                  | GlobalDeclarations BValue
-                  | InteractiveMode BValue
-                  | PrintSuccess BValue
-                  | ProduceAssertions BValue
-                  | ProduceAssignments BValue
-                  | ProduceModels BValue
-                  | ProduceProofs BValue
-                  | ProduceUnsatAssumptions BValue
-                  | ProduceUnsatCores BValue
-                  | RandomSeed Numeral
-                  | RegularOutputChannel StringLiteral
-                  | ReproducibleResourceLimit Numeral
-                  | Verbosity Numeral
-                  | OptionAttr Attribute
-  deriving (Eq, Show)
 
 data SortDec = SortDec Symbol Numeral
   deriving (Eq, Show)
@@ -238,7 +209,32 @@ data Command = Assert Term
 
 type Script = [Command]
 
--- ** Responses
+data BValue = BTrue | BFalse
+  deriving (Eq, Show)
+
+data ScriptOption = DiagnosticOutputChannel StringLiteral
+                  | GlobalDeclarations BValue
+                  | InteractiveMode BValue
+                  | PrintSuccess BValue
+                  | ProduceAssertions BValue
+                  | ProduceAssignments BValue
+                  | ProduceModels BValue
+                  | ProduceProofs BValue
+                  | ProduceUnsatAssumptions BValue
+                  | ProduceUnsatCores BValue
+                  | RandomSeed Numeral
+                  | RegularOutputChannel StringLiteral
+                  | ReproducibleResourceLimit Numeral
+                  | Verbosity Numeral
+                  | OptionAttr Attribute
+  deriving (Eq, Show)
+
+data InfoFlag = AllStatistics | AssertionStackLevels | Authors
+              | ErrorBehavior | Name | ReasonUnknown
+              | Version | IFKeyword Keyword
+  deriving (Eq, Show)
+
+-- ** Responses (Sec 3.9.1)
 
 data ResErrorBehavior = ImmediateExit | ContinuedExecution
   deriving (Eq, Show)
@@ -250,23 +246,24 @@ data ResModel = RMDefineFun FunctionDef
               | RMDefineFunRec FunctionDef
               | RMDefineFunsRec (NonEmpty FunctionDec) (NonEmpty Term) -- ^ same number
 
-data ResStatus = Sat | Unsat | Unknown
-  deriving (Eq, Show)
-
-data InfoResponse = IRErrorBehaviour ResErrorBehavior
-                  | IRName StringLiteral
-                  | IRAuthours StringLiteral
-                  | IRVersion StringLiteral
-                  | IRReasonUnknown ResReasonUnknown
-                  | IRAttr Attribute
+data ResInfo = IRErrorBehaviour ResErrorBehavior
+             | IRName StringLiteral
+             | IRAuthours StringLiteral
+             | IRVersion StringLiteral
+             | IRReasonUnknown ResReasonUnknown
+             | IRAttr Attribute
   deriving (Eq, Show)
 
 type ValuationPair = (Term, Term)
+
 type TValuationPair = (Symbol, BValue)
+
+data ResCheckSat = Sat | Unsat | Unknown
+  deriving (Eq, Show)
 
 -- *** instances
 
-type CheckSatRes = GeneralRes ResStatus
+type CheckSatRes = GeneralRes ResCheckSat
 
 type EchoRes = GeneralRes StringLiteral
 
@@ -274,7 +271,7 @@ type GetAssertionsRes = GeneralRes [Term]
 
 type GetAssignmentRes = GeneralRes [TValuationPair]
 
-type GetInfoRes = GeneralRes (NonEmpty InfoResponse)
+type GetInfoRes = GeneralRes (NonEmpty ResInfo)
 
 type GetModelRes = GeneralRes ResModel
 
