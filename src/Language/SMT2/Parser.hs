@@ -10,6 +10,7 @@ module Language.SMT2.Parser
     -- $utils
     parseString
   , parseStringEof
+  , parseFileMsg
   , strip
   , removeComment
     -- * Lexicons (Sec. 3.1)
@@ -87,6 +88,7 @@ module Language.SMT2.Parser
   , getValueRes
   ) where
 
+import           Data.Bifunctor         (bimap)
 import           Data.Char              (toLower)
 import           Data.Functor           (($>))
 import           Data.List.NonEmpty     (NonEmpty, fromList)
@@ -94,6 +96,7 @@ import           Language.SMT2.Syntax
 import           Text.Parsec            (ParseError, eof, parse, try)
 import           Text.Parsec.Char
 import           Text.Parsec.Combinator
+import           Text.Parsec.Error      (messageString)
 import           Text.Parsec.Prim       (many, unexpected, (<?>), (<|>))
 import           Text.Parsec.String     (Parser)
 
@@ -102,6 +105,10 @@ parseString p = parse p ""
 
 parseStringEof :: Parser a -> String -> Either ParseError a
 parseStringEof p = parse (p <* eof) ""
+
+-- | parse from a file string, may have leading & trailing spaces and comments
+parseFileMsg :: Parser a -> String -> Either String a
+parseFileMsg p = bimap show id . parseStringEof (strip p) . removeComment
 
 -- * Utils
 -- $utils
