@@ -1,8 +1,11 @@
-import           Data.List            (intercalate)
+{-# LANGUAGE OverloadedStrings #-}
 import           Data.List.NonEmpty   (fromList)
+import qualified Data.Text            as T
+import qualified Data.Text.IO         as TIO
 import           Language.SMT2.Parser
 import           Language.SMT2.Syntax
 import           Test.HUnit
+import           Text.Parsec.Text     (GenParser)
 
 -- * Parsing tests
 -- Test cases are from
@@ -11,37 +14,37 @@ import           Test.HUnit
 --   3. Examples of horn-like clauses with disjuction on heads.
 
 -- | parse and test a string, expecting @a@
-pe :: (Eq a, Show a) => GenStrParser () a -> String -> a -> Test
+pe :: (Eq a, Show a) => GenParser () a -> T.Text -> a -> Test
 pe p s expected = TestCase $ case parseStringEof p s of
                     Right actual -> expected @=? actual
-                    Left _ -> assertFailure $ "should succeed for " <> s
+                    Left _ -> assertFailure $ "should succeed for " <> T.unpack s
 
-parseTest :: (String -> Assertion) -> (String -> Assertion) -> GenStrParser () a -> String -> Assertion
+parseTest :: (T.Text -> Assertion) -> (T.Text -> Assertion) -> GenParser () a -> T.Text -> Assertion
 parseTest success failure p s = case parseStringEof p s of
                                   Left _  -> failure s
                                   Right _ -> success s
 
 -- | parse and success, an assertion
-pas :: GenStrParser () a -> String -> Assertion
-pas = parseTest (\_ -> pure ()) (\s -> assertFailure $ "should succeed for " <> s)
+pas :: GenParser () a -> T.Text -> Assertion
+pas = parseTest (\_ -> pure ()) (\s -> assertFailure $ "should succeed for " <> T.unpack s)
 
 -- | parse and failure, an assertion
-paf :: GenStrParser () a -> String -> Assertion
-paf = parseTest (\s -> assertFailure $ "should fail for " <> s) (\_ -> pure ())
+paf :: GenParser () a -> T.Text -> Assertion
+paf = parseTest (\s -> assertFailure $ "should fail for " <> T.unpack s) (\_ -> pure ())
 
 -- | parse and success
-ps :: GenStrParser () a -> String -> Test
+ps :: GenParser () a -> T.Text -> Test
 ps p s = TestCase $ pas p s
 
 -- | parse and failure
-pf :: GenStrParser () a -> String -> Test
+pf :: GenParser () a -> T.Text -> Test
 pf p s = TestCase $ paf p s
 
 -- | parse file success
-pfs :: GenStrParser () a -> String -> Test
+pfs :: GenParser () a -> FilePath -> Test
 pfs p f = TestCase $ do
-  s <- readFile f
-  pas (strip p) (removeComment s)
+  s <- TIO.readFile f
+  pas (stripSpaces p) (removeComment s)
 
 
 -- | Sec 3.1
@@ -190,7 +193,7 @@ syntaxTest = TestList [ pI "plus" (IdSymbol "plus")
     pA = pe attribute
     pT = pe sort
     psP = ps parFunSymbolDecl
-    mkTerm = intercalate "\n"
+    mkTerm = T.intercalate "\n"
 
 -- | test the theory declaration from Fig. 3.1 (http://smtlib.cs.uiowa.edu/theories-Core.shtml)
 theoryCoreTest = pfs theoryDecl "test/files/Theories-Core.smt2"
@@ -208,11 +211,12 @@ disjuctionTest = pfs script "test/files/disjuction-head.smt2"
 -- | remove the comments
 commentTest = TestList [ onlyComment, commentWithString, commentWithSymbol, commentStringInSymbol, commentSymbolInString ]
   where
-    onlyComment = removeComment "; this is a comment\n;so is this\r" ~?= " \n \r"
-    commentWithString = removeComment "; this is a comment,\n\"but this isn't, even after ; it won't be\";however\n" ~?= " \n\"but this isn't, even after ; it won't be\" \n"
-    commentWithSymbol = removeComment "|;here we go;\n|;not so fast\n\r" ~?= "|;here we go;\n| \n\r"
-    commentStringInSymbol = removeComment "|;wait\n I speak \"symbolism;&others\n\";next|;finally\n" ~?= "|;wait\n I speak \"symbolism;&others\n\";next| \n"
-    commentSymbolInString = removeComment "\"A |quoted symbol ;example\n| ;actually no\r\n\";unless\r" ~?= "\"A |quoted symbol ;example\n| ;actually no\r\n\" \r"
+    onlyComment = rc "; this is a comment\n;so is this\r" " \n \r"
+    commentWithString = rc "; this is a comment,\n\"but this isn't, even after ; it won't be\";however\n" " \n\"but this isn't, even after ; it won't be\" \n"
+    commentWithSymbol = rc "|;here we go;\n|;not so fast\n\r" "|;here we go;\n| \n\r"
+    commentStringInSymbol = rc "|;wait\n I speak \"symbolism;&others\n\";next|;finally\n" "|;wait\n I speak \"symbolism;&others\n\";next| \n"
+    commentSymbolInString = rc "\"A |quoted symbol ;example\n| ;actually no\r\n\";unless\r" "\"A |quoted symbol ;example\n| ;actually no\r\n\" \r"
+    rc before after = removeComment before ~?= after
 
 extraTest = TestList [ commentTest ]
 

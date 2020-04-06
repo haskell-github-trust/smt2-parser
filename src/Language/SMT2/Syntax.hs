@@ -4,26 +4,26 @@
  - Maintainer  : yokis1997@pku.edu.cn
  - Stability   : experimental
 -}
+{-# LANGUAGE OverloadedStrings #-}
 module Language.SMT2.Syntax where
 
 import           Data.List.NonEmpty (NonEmpty)
-import           Text.Parsec        (Parsec)
-
-type GenStrParser st = Parsec String st
+import qualified Data.Text          as T
+import           Text.Parsec.Text   (GenParser)
 
 -- * Lexicons (Sec. 3.1)
 --
 -- Note: semantics should be provided by specific theories.
 -- See Remark 1 of the refrence.
 
-type Numeral       = String
-type Decimal       = String
-type Hexadecimal   = String
-type Binary        = String
-type StringLiteral = String
-type ReservedWord  = String
-type Symbol        = String
-type Keyword       = String
+type Numeral       = T.Text
+type Decimal       = T.Text
+type Hexadecimal   = T.Text
+type Binary        = T.Text
+type StringLiteral = T.Text
+type ReservedWord  = T.Text
+type Symbol        = T.Text
+type Keyword       = T.Text
 
 
 -- * S-expressions (Sec. 3.2)
@@ -290,5 +290,5 @@ data GeneralRes res = ResSuccess | ResSpecific res
   deriving (Eq, Show)
 
 class SpecificSuccessRes s where
-  specificSuccessRes :: GenStrParser st s
+  specificSuccessRes :: GenParser st s
 
