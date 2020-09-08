@@ -156,6 +156,11 @@ tryStr s = try $ string s *> spaces $> ()
 tryStr1 :: String -> GenParser st ()
 tryStr1 s = try $ string s *> spaces1 $> ()
 
+tryStrBraket :: String -> GenParser st ()
+tryStrBraket s = try $ string s *> (spaces1 <|> lookLeftBraket) $> ()
+  where
+    lookLeftBraket = try $ lookAhead (char '(') $> ()
+
 -- | like @tryStr@, but prefix with a @':'@
 tryAttr :: String -> GenParser st ()
 tryAttr s = tryStr (':':s)
@@ -345,7 +350,7 @@ qualIdentifier =  Unqualified <$> try identifier
   where
     annotation :: GenParser st QualIdentifier
     annotation = do
-      tryStr "as"
+      tryStrBraket "as"
       id <- identifier <* spaces1
       Qualified id <$> sort
 

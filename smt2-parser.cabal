@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d808727f2f0115446a11abee007133dbc958dcce2b5ba85c13f53261cbef6e58
+-- hash: d42e9acc5818464ef182e89ea450599d770d72eefa1be347aabccc4f5109bf9f
 
 name:           smt2-parser
 version:        0.1.0.0
@@ -35,7 +35,7 @@ library
       src
   build-depends:
       base >=4.7 && <5
-    , parsec >=3.1 && <4
+    , parsec
     , text
   default-language: Haskell2010
 
@@ -50,7 +50,7 @@ test-suite smt2-parser-test
   build-depends:
       HUnit >=1.0 && <2.0
     , base >=4.7 && <5
-    , parsec >=3.1 && <4
+    , parsec
     , smt2-parser
     , text
   default-language: Haskell2010
