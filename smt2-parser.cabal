@@ -1,18 +1,20 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.31.2.
+-- This file has been generated from package.yaml by hpack version 0.33.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d42e9acc5818464ef182e89ea450599d770d72eefa1be347aabccc4f5109bf9f
+-- hash: 4600f2cf6fce344397b3d9f609879ff71926bf728d5f8e5a8b536f953ea16c3d
 
 name:           smt2-parser
 version:        0.1.0.0
+synopsis:       A Haskell parser for SMT-LIB version 2.6
 description:    Please see the README on GitHub at <https://github.com/crvdgc/smt2-parser#readme>
+category:       SMT, Formal Languages, Language
 homepage:       https://github.com/crvdgc/smt2-parser#readme
 bug-reports:    https://github.com/crvdgc/smt2-parser/issues
 author:         crvdgc
-maintainer:     yokis1997@pku.edu.cn
+maintainer:     2502project@gmail.com
 copyright:      2020 crvdgc
 license:        BSD3
 license-file:   LICENSE

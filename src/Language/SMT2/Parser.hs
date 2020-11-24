@@ -12,6 +12,7 @@ module Language.SMT2.Parser
     parseString
   , parseStringEof
   , parseFileMsg
+  , parseCommentFreeFileMsg
   , stripSpaces
   , removeComment
     -- * Lexicons (Sec. 3.1)

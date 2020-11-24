@@ -1,3 +1,6 @@
 # Changelog for smt2-parser
 
-## Unreleased changes
+## 0.1.0.0
+
+Initial release.
+
