@@ -111,7 +111,11 @@ parseStringEof p = parse (p <* eof) ""
 
 -- | parse from a file string, may have leading & trailing spaces and comments
 parseFileMsg :: Parser a -> T.Text -> Either T.Text a
-parseFileMsg p = bimap (T.pack . show) id . parseStringEof (stripSpaces p) . removeComment
+parseFileMsg p = parseCommentFreeFileMsg p . removeComment
+
+-- | parse from a comment-free file string
+parseCommentFreeFileMsg :: Parser a -> T.Text -> Either T.Text a
+parseCommentFreeFileMsg p = bimap (T.pack . show) id . parseStringEof (stripSpaces p)
 
 -- * Utils
 -- $utils

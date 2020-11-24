@@ -50,8 +50,8 @@ pfs p f = TestCase $ do
 -- | Sec 3.1
 lexiconTest = TestList [ pN "0" ("0" :: Numeral)
                        , pN "42" ("42" :: Numeral)
-                       , pf numeral "02"   -- ^ should not start with 0
-                       , pf numeral "221b" -- ^ should not contain letters
+                       , pf numeral "02"   -- should not start with 0
+                       , pf numeral "221b" -- should not contain letters
                        , pD "0.0" ("0.0" :: Decimal)
                        , pD "0.00" ("0.00" :: Decimal)
                        , pD "0.1" ("0.1" :: Decimal)
@@ -59,13 +59,13 @@ lexiconTest = TestList [ pN "0" ("0" :: Numeral)
                        , pD "1.010" ("1.010" :: Decimal)
                        , pf decimal ".5"
                        , pH "#x0" ("0" :: Hexadecimal)
-                       , pH "#xa04" ("a04" :: Hexadecimal)   -- ^ alphabet
-                       , pH "#xA04" ("a04" :: Hexadecimal)   -- ^ alphabet, to lower case
-                       , pH "#x01Ab" ("01ab" :: Hexadecimal) -- ^ mixture
+                       , pH "#xa04" ("a04" :: Hexadecimal)   -- alphabet
+                       , pH "#xA04" ("a04" :: Hexadecimal)   -- alphabet, to lower case
+                       , pH "#x01Ab" ("01ab" :: Hexadecimal) -- mixture
                        , pH "#x61ff" ("61ff" :: Hexadecimal)
                        , pH "#xdeadbeef" ("deadbeef" :: Hexadecimal)
-                       , pf hexadecimal "#x#x"    -- ^ signs
-                       , pf hexadecimal "#xA1G01" -- ^ letter is not hex degit
+                       , pf hexadecimal "#x#x"    -- signs
+                       , pf hexadecimal "#xA1G01" -- letter is not hex degit
                        , pB "#b0" ("0" :: Binary)
                        , pB "#b1" ("1" :: Binary)
                        , pB "#b001" ("001" :: Binary)
@@ -81,13 +81,13 @@ lexiconTest = TestList [ pN "0" ("0" :: Numeral)
                        , pR "!" ("!" :: ReservedWord)
                        , pR "as" ("as" :: ReservedWord)
                        , pR "set-logic" ("set-logic" :: ReservedWord)
-                       , pf reservedWord "asleep" -- ^ prefix
-                       , pf symbol "par" -- ^ symbol should not be a reserved word
+                       , pf reservedWord "asleep" -- prefix
+                       , pf symbol "par" -- symbol should not be a reserved word
                        , pf symbol "NUMERAL"
                        , pf symbol "_"
                        , pf symbol "!"
                        , pf symbol "as"
-                       , pS "asleep" ("asleep" :: Symbol) -- ^ prefixed by a reserved word
+                       , pS "asleep" ("asleep" :: Symbol) -- prefixed by a reserved word
                        , pS "+" ("+" :: Symbol)
                        , pS "<=" ("<=" :: Symbol)
                        , pS "x" ("x" :: Symbol)
@@ -106,7 +106,7 @@ lexiconTest = TestList [ pN "0" ("0" :: Numeral)
                        , pS "||" ("" :: Symbol)
                        , pS "|\" can occur too|" ("\" can occur too" :: Symbol)
                        , pS "|af kljˆ∗(0asfsfe2(&∗)&(#ˆ$>>>?”’]]984|" ("af kljˆ∗(0asfsfe2(&∗)&(#ˆ$>>>?”’]]984" :: Symbol)
-                       , pS "|abc|" ("abc" :: Symbol) -- ^ quoted simple symbol is the same
+                       , pS "|abc|" ("abc" :: Symbol) -- quoted simple symbol is the same
                        , pS "abc" ("abc" :: Symbol)
                        , pK ":date" ("date" :: Keyword)
                        , pK ":a2" ("a2" :: Keyword)

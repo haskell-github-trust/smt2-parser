@@ -4,7 +4,6 @@
  - Maintainer  : yokis1997@pku.edu.cn
  - Stability   : experimental
 -}
-{-# LANGUAGE OverloadedStrings #-}
 module Language.SMT2.Syntax where
 
 import           Data.List.NonEmpty (NonEmpty)
