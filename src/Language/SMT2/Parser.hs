@@ -90,16 +90,15 @@ module Language.SMT2.Parser
   , getValueRes
   ) where
 
-import           Data.Bifunctor         (bimap)
+import           Data.Bifunctor         (first)
 import           Data.Char              (toLower)
 import           Data.Functor           (($>))
 import           Data.List.NonEmpty     (NonEmpty, fromList)
 import qualified Data.Text              as T
 import           Language.SMT2.Syntax
-import           Text.Parsec            (ParseError, eof, parse, try)
+import           Text.Parsec            (ParseError, parse, try)
 import           Text.Parsec.Char
 import           Text.Parsec.Combinator
-import           Text.Parsec.Error      (messageString)
 import           Text.Parsec.Prim       (many, unexpected, (<?>), (<|>))
 import           Text.Parsec.Text       (GenParser, Parser)
 
@@ -116,7 +115,7 @@ parseFileMsg p = parseCommentFreeFileMsg p . removeComment
 
 -- | parse from a comment-free file string
 parseCommentFreeFileMsg :: Parser a -> T.Text -> Either T.Text a
-parseCommentFreeFileMsg p = bimap (T.pack . show) id . parseStringEof (stripSpaces p)
+parseCommentFreeFileMsg p = first (T.pack . show) . parseStringEof (stripSpaces p)
 
 -- * Utils
 -- $utils
@@ -396,7 +395,7 @@ term =  TermSpecConstant <$> try specConstant
     binding = betweenBrackets $ do
       tryStr "let"
       vbs <- betweenBrackets $ sepOptSpace1 varBinding
-      space
+      spaces
       TermLet vbs <$> term
     quantifyForall = betweenBrackets $ do
       tryStr "forall"

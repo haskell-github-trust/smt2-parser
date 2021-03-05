@@ -208,6 +208,8 @@ hornTest = TestList [ pfs script "test/files/sum.smt2"
 
 disjuctionTest = pfs script "test/files/disjuction-head.smt2"
 
+preprocTest = pfs script "test/files/preproc_0004_cfg_red.smt2"
+
 -- | remove the comments
 commentTest = TestList [ onlyComment, commentWithString, commentWithSymbol, commentStringInSymbol, commentSymbolInString ]
   where
@@ -224,6 +226,7 @@ tests = TestList [ TestLabel "spec" specTest
                  , TestLabel "horn" hornTest
                  , TestLabel "disjuction" disjuctionTest
                  , TestLabel "extra" extraTest
+                 , TestLabel "preproc" preprocTest
                  ]
 
 main :: IO ()

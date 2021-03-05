@@ -1,0 +1,7 @@
+cradle:
+  stack:
+    - path: "src"
+      component: "smt2-parser"
+
+    - path: "test"
+      component: "smt2-parser:test:smt2-parser-test"
