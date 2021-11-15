@@ -20,9 +20,9 @@ category:            SMT, Formal Languages, Language
 description:         Please see the README on GitHub at <https://github.com/crvdgc/smt2-parser#readme>
 
 dependencies:
-- base >= 4.13.0 && < 4.14
-- parsec >= 3.1.14 && < 3.2
-- text >= 1.2.4 && < 1.3
+- base
+- parsec
+- text
 
 library:
   source-dirs: src
