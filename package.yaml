@@ -1,9 +1,9 @@
 name:                smt2-parser
-version:             0.1.0.0
+version:             0.1.0.1
 github:              "crvdgc/smt2-parser"
 license:             BSD3
 author:              "crvdgc"
-maintainer:          "2502project@gmail.com"
+maintainer:          "ubikium@gmail.com"
 copyright:           "2020 crvdgc"
 
 extra-source-files:
@@ -20,9 +20,9 @@ category:            SMT, Formal Languages, Language
 description:         Please see the README on GitHub at <https://github.com/crvdgc/smt2-parser#readme>
 
 dependencies:
-- base
-- parsec
-- text
+- base >= 4.13.0 && < 5
+- parsec >= 3.1.14
+- text >= 1.2.4
 
 library:
   source-dirs: src
@@ -37,4 +37,4 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - smt2-parser
-    - HUnit >= 1.6.0 && < 1.7
+    - HUnit >= 1.6.0
